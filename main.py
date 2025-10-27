@@ -24,6 +24,7 @@ Logo zostanie automatycznie przeskalowane i wyświetlone w lewym górnym rogu ap
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from datetime import datetime, date, timedelta
+import calendar
 import traceback
 from dataclasses import dataclass
 from typing import List, Optional, Dict
@@ -99,7 +100,7 @@ except Exception:
     TTKBOOTSTRAP_AVAILABLE = False
 
 APP_NAME = "RMK insGT"
-APP_VERSION = "v0.22.15"
+APP_VERSION = "v0.22.19"
 COMPANY_NAME = "IntegritasAD"
 
 # Kolorystyka w stylu SAP
@@ -234,7 +235,7 @@ def configure_ttk_styles(root):
                        background='#FFFFFF',            # Białe tło tabel SAP
                        foreground=BRAND_COLOR_TEXT,     # Ciemnoszary tekst SAP
                        rowheight=25,
-                       fieldbackground='#FFFFFF',       # Białe tło pól
+                       fieldbackground="#FFFFFFBA",       # Białe tło pól
                        font=('Segoe UI', 9),
                        borderwidth=1,
                        relief='solid',
@@ -247,7 +248,7 @@ def configure_ttk_styles(root):
                        background='#FFFFFF',
                        foreground=BRAND_COLOR_TEXT,
                        rowheight=25,
-                       fieldbackground='#FFFFFF',
+                       fieldbackground='#FFFFFFBA',
                        font=('Segoe UI', 9),
                        borderwidth=1,
                        relief='solid',
@@ -260,7 +261,7 @@ def configure_ttk_styles(root):
                        background='#FFFFFF',
                        foreground=BRAND_COLOR_TEXT,
                        rowheight=25,
-                       fieldbackground='#FFFFFF',
+                       fieldbackground='#FFFFFFBA',
                        font=('Segoe UI', 9),
                        borderwidth=1,
                        relief='solid',
@@ -324,7 +325,7 @@ def configure_ttk_styles(root):
         # Style SAP - selekcja w tabelach (niebieski SAP)
         style.map('Treeview',
                  background=[('selected', BRAND_COLOR_ACCENT)],  # Niebieski SAP
-                 foreground=[('selected', 'white')])
+                 foreground=[('selected', 'gray')])
         
         # Style SAP - zakładki (Notebook)
         style.configure('TNotebook',
@@ -387,7 +388,7 @@ def configure_single_treeview_borders(tree):
                           relief='solid',
                           bordercolor=BRAND_COLOR_BORDER,      # Szare obramowania SAP
                           lightcolor=BRAND_COLOR_BORDER,       # Separatory kolumn SAP
-                          darkcolor='#B0B0B0')                 # Separatory wierszy SAP
+                          darkcolor="#9C9B9B")                 # Separatory wierszy SAP
             
             style.configure('Bordered.Treeview.Heading',
                           background=BRAND_COLOR_ACCENT,       # Niebieski SAP
@@ -452,13 +453,13 @@ def configure_treeview_borders(root):
                     # 1. Konfiguruj samą tabelę
                     widget.configure(
                         selectmode='extended',
-                        background='white',
+                        background='gray',
                         foreground='black', 
-                        fieldbackground='white'
+                        fieldbackground='gray'
                     )
                     
                     # 2. Alternujące kolory wierszy
-                    widget.tag_configure('evenrow', background='#f0f8ff', foreground='black')
+                    widget.tag_configure('evenrow', background="#b9cafa", foreground='black')
                     widget.tag_configure('oddrow', background='white', foreground='black')
                     
                     def apply_row_colors():
@@ -590,14 +591,14 @@ def configure_treeview_tags(root):
                                    background='#FFFFFF',   # Biały
                                    foreground=BRAND_COLOR_TEXT)
                 
-                # Kolory statusu - bardziej wyraziste
+                # Kolory statusu - jasnozielone/czerwone tło z czarnym tekstem
                 widget.tag_configure('gen', 
-                                   background="#30df58",   # Jasnozielony
-                                   foreground='#155724',   # Ciemnozielony
+                                   background='#d4edda',   # Jasnozielone tło
+                                   foreground='#000000',   # Czarny tekst
                                    font=('Segoe UI', 9))
                 widget.tag_configure('ungen', 
-                                   background="#e25763",   # Jasnoróżowy
-                                   foreground='#721c24',   # Ciemnoczerwony  
+                                   background='#f8d7da',   # Jasnoróżowe/czerwone tło
+                                   foreground='#000000',   # Czarny tekst
                                    font=('Segoe UI', 9))
                 
                 # Dodaj automatyczne kolorowanie wierszy
@@ -2553,8 +2554,8 @@ Funkcjonalności:
                 pass
         # tag styles (ttk Treeview doesn't support tag foreground/bg directly in all themes)
         try:
-            self.tree.tag_configure('gen', background='#d4edda', foreground="#7BDD92")  # Wyrazisty zielony
-            self.tree.tag_configure('ungen', background='#f8d7da', foreground="#e97f8a")  # Wyrazisty czerwony
+            self.tree.tag_configure('gen', background='#d4edda', foreground='#000000')  # Jasnozielone tło, czarny tekst
+            self.tree.tag_configure('ungen', background='#f8d7da', foreground='#000000')  # Jasnoróżowe tło, czarny tekst
         except Exception:
             pass
         
@@ -2973,7 +2974,21 @@ Funkcjonalności:
         iid = sel[0]
         vals = self.tree.item(iid, 'values')
         start = datetime.strptime(str(vals[2]), "%Y-%m-%d").date()
-        end = datetime.strptime(str(vals[3]), "%Y-%m-%d").date()  # data końca
+        
+        # Obsłuż pustą datę końca
+        end_str = str(vals[3]).strip()
+        if end_str and end_str != "":
+            end = datetime.strptime(end_str, "%Y-%m-%d").date()
+        else:
+            # Jeśli data końca jest pusta, oblicz na podstawie liczby miesięcy
+            liczba_mies = int(vals[4])
+            # Dodaj liczbę miesięcy do daty początkowej
+            end_year = start.year + (start.month + liczba_mies - 1) // 12
+            end_month = (start.month + liczba_mies - 1) % 12 + 1
+            # Ostatni dzień okresu to dzień przed datą rozpoczęcia następnego miesiąca
+            end_day = calendar.monthrange(end_year, end_month)[1]  # ostatni dzień miesiąca
+            end = datetime(end_year, end_month, end_day).date()
+        
         liczba_mies = int(vals[4])
         # vals[5] may be formatted with thousand_sep (e.g. '1 234,56') -> normalize
         kw_str = str(vals[5])
