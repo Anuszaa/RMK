@@ -4,6 +4,26 @@ param(
     [string]$Spec = 'main.spec'
 )
 
+Write-Host "=== SYNCHRONIZACJA DANYCH PRZED BUDOWANIEM ===" -ForegroundColor Cyan
+
+# Sprawdź czy istnieje plik data.json i sync_data.py
+$dataFile = Join-Path -Path "." -ChildPath "data.json"
+$syncScript = Join-Path -Path "." -ChildPath "sync_data.py"
+
+if ((Test-Path $syncScript) -and (Test-Path $dataFile)) {
+    Write-Host "Sprawdzam informacje o plikach danych..." -ForegroundColor Yellow
+    & $Python $syncScript info
+    
+    Write-Host ""
+    Write-Host "Kopiuję aktualne dane DEV → EXE przed budowaniem..." -ForegroundColor Yellow
+    & $Python $syncScript dev-to-exe
+    Write-Host ""
+} else {
+    Write-Host "Brak sync_data.py lub data.json - pomijam synchronizację" -ForegroundColor Yellow
+}
+
+Write-Host "=== BUDOWANIE EXE ===" -ForegroundColor Cyan
+
 Write-Host "Installing PyInstaller..."
 & $Python -m pip install --upgrade pip
 & $Python -m pip install pyinstaller
@@ -165,11 +185,16 @@ Write-Host "Copying artifact to: $destDir"
 Copy-Item -Path $artifact -Destination $destDir -Force
 
 if ($?) {
-    Write-Host "Build finished. Artifact copied to: $destDir"
+    Write-Host "Build finished. Artifact copied to: $destDir" -ForegroundColor Green
     Write-Host "PyInstaller log: $log"
+    Write-Host ""
+    Write-Host "=== UWAGA ===" -ForegroundColor Yellow
+    Write-Host "EXE używa danych z: %USERPROFILE%\RMK_insGT\data.json"
+    Write-Host "Jeśli wprowadzisz zmiany w exe, skopiuj je z powrotem:"
+    Write-Host "python sync_data.py exe-to-dev" -ForegroundColor Cyan
     exit 0
 } else {
-    Write-Host "Failed to copy artifact to: $destDir"
+    Write-Host "Failed to copy artifact to: $destDir" -ForegroundColor Red
     Write-Host "PyInstaller log: $log"
     exit 3
 }

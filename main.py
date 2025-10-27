@@ -105,8 +105,8 @@ COMPANY_NAME = "IntegritasAD"
 # Kolorystyka w stylu SAP
 BRAND_COLOR_BG = "#003366"          # Ciemnoniebieski SAP
 BRAND_COLOR_ACCENT = "#0070BA"      # Niebieski SAP
-BRAND_COLOR_LIGHT = "#AFAFAF"       # Ciemniejsze szare tło główne SAP
-BRAND_COLOR_FRAME = "#838181"       # Lekko szare panele robocze SAP zamiast białych
+BRAND_COLOR_LIGHT = "#DFDEDE"       # Ciemniejsze szare tło główne SAP
+BRAND_COLOR_FRAME = "#DFDCDC"       # Lekko szare panele robocze SAP zamiast białych
 BRAND_COLOR_BORDER = "#CCCCCC"      # Szare obramowania SAP
 BRAND_COLOR_HEADER = "#E8E8E8"      # Jasny szary dla nagłówków SAP
 BRAND_COLOR_YELLOW = "#FFD700"      # Żółty akcent SAP
@@ -240,7 +240,7 @@ def configure_ttk_styles(root):
                        relief='solid',
                        bordercolor=BRAND_COLOR_BORDER,  # Szare ramki SAP
                        lightcolor=BRAND_COLOR_BORDER,   # Separatory kolumn SAP
-                       darkcolor='#B0B0B0')             # Separatory wierszy SAP
+                       darkcolor="#B0B0B0B2")             # Separatory wierszy SAP
         
         # Style specjalne - tabele Słowników
         style.configure('Dictionary.Treeview',
@@ -592,11 +592,11 @@ def configure_treeview_tags(root):
                 
                 # Kolory statusu - bardziej wyraziste
                 widget.tag_configure('gen', 
-                                   background='#d4edda',   # Jasnozielony
+                                   background="#30df58",   # Jasnozielony
                                    foreground='#155724',   # Ciemnozielony
                                    font=('Segoe UI', 9))
                 widget.tag_configure('ungen', 
-                                   background='#f8d7da',   # Jasnoróżowy
+                                   background="#e25763",   # Jasnoróżowy
                                    foreground='#721c24',   # Ciemnoczerwony  
                                    font=('Segoe UI', 9))
                 
