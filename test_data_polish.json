@@ -1,0 +1,67 @@
+{
+  "users": {
+    "admin": {
+      "password": "admin",
+      "is_admin": true,
+      "companies": [
+        "Firma Testowa Ąć"
+      ]
+    },
+    "user": {
+      "password": "user",
+      "is_admin": false,
+      "companies": [
+        "Testowa Spółka Żź"
+      ]
+    }
+  },
+  "companies": [
+    "Firma Testowa Ąć",
+    "Testowa Spółka Żź"
+  ],
+  "categories": [
+    "Ubezpieczenia życiowe",
+    "Licencje oprogramowania",
+    "Czynsz biurowy",
+    "Subskrypcje czasopism"
+  ],
+  "accounts": [
+    {
+      "konto": "401-1",
+      "opis": "Koszty podstawowe działalności"
+    },
+    {
+      "konto": "640",
+      "opis": "Rozliczenia międzyokresowe kosztów"
+    }
+  ],
+  "rmk_accounts": [
+    {
+      "konto": "640",
+      "opis": "Rozliczenia międzyokresowe bierne"
+    },
+    {
+      "konto": "640-1",
+      "opis": "RMK - amortyzacja środków trwałych"
+    }
+  ],
+  "rmk_items": [
+    {
+      "id": 1,
+      "opis": "Ubezpieczenie biurowe – polisa roczna",
+      "data_start": "2024-01-01",
+      "liczba_mies": 12,
+      "kwota": 12000.0,
+      "firma": "Firma Testowa Ąć",
+      "kategoria": "Ubezpieczenia życiowe",
+      "konto_kosztowe": "401-1",
+      "konto_rmk": "640",
+      "numer_faktury": "FV/2024/001/Ąć",
+      "kontrahent": "Ubezpieczenia PZU Spółka",
+      "data_koniec": "2024-12-31",
+      "harmonogram_generated": false,
+      "harmonogram": []
+    }
+  ],
+  "view_state": {}
+}

@@ -99,16 +99,30 @@ except Exception:
     TTKBOOTSTRAP_AVAILABLE = False
 
 APP_NAME = "RMK insGT"
-APP_VERSION = "v0.22.7"
+APP_VERSION = "v0.22.15"
 COMPANY_NAME = "IntegritasAD"
-BRAND_COLOR_BG = "#0F2D52"
-BRAND_COLOR_ACCENT = "#1C6DD0"
-BRAND_COLOR_LIGHT = "#F2F6FB"
-BRAND_COLOR_YELLOW = "#FFEB80"
+
+# Kolorystyka w stylu SAP
+BRAND_COLOR_BG = "#003366"          # Ciemnoniebieski SAP
+BRAND_COLOR_ACCENT = "#0070BA"      # Niebieski SAP
+BRAND_COLOR_LIGHT = "#AFAFAF"       # Ciemniejsze szare tło główne SAP
+BRAND_COLOR_FRAME = "#838181"       # Lekko szare panele robocze SAP zamiast białych
+BRAND_COLOR_BORDER = "#CCCCCC"      # Szare obramowania SAP
+BRAND_COLOR_HEADER = "#E8E8E8"      # Jasny szary dla nagłówków SAP
+BRAND_COLOR_YELLOW = "#FFD700"      # Żółty akcent SAP
+BRAND_COLOR_TEXT = "#333333"        # Ciemnoszary tekst SAP
 
 def configure_ttk_styles(root):
     """Konfiguruje style TTK dla zachowania kolorów w exe"""
     try:
+        # Debug kolorów SAP
+        print("DEBUG KOLORÓW SAP:")
+        print(f"   BRAND_COLOR_BG = {BRAND_COLOR_BG}")
+        print(f"   BRAND_COLOR_ACCENT = {BRAND_COLOR_ACCENT}")
+        print(f"   BRAND_COLOR_LIGHT = {BRAND_COLOR_LIGHT}")
+        print(f"   BRAND_COLOR_FRAME = {BRAND_COLOR_FRAME}")
+        print(f"   BRAND_COLOR_HEADER = {BRAND_COLOR_HEADER}")
+        
         style = ttk.Style(root)
         
         # Wymuś nasz motyw i style - zastąp ttkbootstrap
@@ -119,53 +133,70 @@ def configure_ttk_styles(root):
             
             if 'clam' in available_themes:
                 style.theme_use('clam')  # Bardziej nowoczesny wygląd
-                print("✅ Używam motywu 'clam'")
+                print("Używam motywu 'clam'")
             elif 'alt' in available_themes:
                 style.theme_use('alt')   # Alternatywny motyw
-                print("✅ Używam motywu 'alt'")
+                print("Używam motywu 'alt'")
             else:
                 style.theme_use('default')
-                print("✅ Używam motywu 'default'")
+                print("Używam motywu 'default'")
         except Exception as e:
-            print(f"⚠️  Błąd motywu: {e}")
+            print(f"BŁĄD motywu: {e}")
             style.theme_use('default')
         
         # Konfiguruj style dla lepszego wyglądu
+        # Style SAP - etykiety
         style.configure('TLabel', 
                        background=BRAND_COLOR_LIGHT,
-                       foreground='#333333',
+                       foreground=BRAND_COLOR_TEXT,
                        font=('Segoe UI', 9))
         
+        # Style SAP - ramki
         style.configure('TFrame', 
-                       background=BRAND_COLOR_LIGHT,
+                       background=BRAND_COLOR_FRAME,  # Białe panele SAP
                        borderwidth=1,
                        relief='solid',
-                       bordercolor='#cccccc')
+                       bordercolor=BRAND_COLOR_BORDER)  # Szare obramowania SAP
         
+        # Specjalny styl dla zakładek - jasnoszare tło SAP
+        style.configure('Light.TFrame', 
+                       background=BRAND_COLOR_LIGHT,  # Główne tło SAP
+                       borderwidth=0,
+                       relief='flat')
+        
+        # Styl dla sekcji/paneli - białe panele robocze SAP
+        style.configure('Panel.TFrame', 
+                       background=BRAND_COLOR_FRAME,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=BRAND_COLOR_BORDER)
+        
+        # Style SAP - pola wprowadzania
         style.configure('TEntry', 
                        fieldbackground='white',
-                       borderwidth=2,
+                       borderwidth=1,
                        relief='solid',
-                       bordercolor=BRAND_COLOR_BG,
+                       bordercolor=BRAND_COLOR_BORDER,  # Szare obramowania SAP
                        font=('Segoe UI', 9))
         
         style.configure('TCombobox', 
                        fieldbackground='white',
-                       borderwidth=2,
+                       borderwidth=1,
                        relief='solid',
-                       bordercolor=BRAND_COLOR_BG,
+                       bordercolor=BRAND_COLOR_BORDER,  # Szare obramowania SAP
                        font=('Segoe UI', 9))
         
+        # Style SAP - przyciski główne
         style.configure('TButton',
-                       background=BRAND_COLOR_ACCENT,
+                       background=BRAND_COLOR_ACCENT,  # Niebieski SAP
                        foreground='white',
-                       borderwidth=2,
+                       borderwidth=1,
                        focuscolor='none',
                        font=('Segoe UI', 9, 'bold'),
                        relief='raised')
         
         style.map('TButton',
-                 background=[('active', BRAND_COLOR_BG),
+                 background=[('active', BRAND_COLOR_BG),  # Ciemnoniebieski SAP przy hover
                             ('pressed', BRAND_COLOR_BG)],
                  relief=[('pressed', 'sunken')])
         
@@ -198,18 +229,86 @@ def configure_ttk_styles(root):
                        relief='raised',
                        font=('Segoe UI', 9, 'bold'))
         
-        # Treeview (tabele) - z ciemno-granatowymi ramkami i separatorami
+        # Style SAP - tabele z alternującymi wierszami
         style.configure('Treeview',
-                       background='white',
-                       foreground='#333333',
+                       background='#FFFFFF',            # Białe tło tabel SAP
+                       foreground=BRAND_COLOR_TEXT,     # Ciemnoszary tekst SAP
                        rowheight=25,
-                       fieldbackground='white',
+                       fieldbackground='#FFFFFF',       # Białe tło pól
                        font=('Segoe UI', 9),
-                       borderwidth=2,
+                       borderwidth=1,
                        relief='solid',
-                       bordercolor=BRAND_COLOR_BG,  # Ciemno-granatowe ramki zewnętrzne
-                       lightcolor='#ffffff',  # Jasne separatory
-                       darkcolor='#cccccc')   # Ciemne separatory
+                       bordercolor=BRAND_COLOR_BORDER,  # Szare ramki SAP
+                       lightcolor=BRAND_COLOR_BORDER,   # Separatory kolumn SAP
+                       darkcolor='#B0B0B0')             # Separatory wierszy SAP
+        
+        # Style specjalne - tabele Słowników
+        style.configure('Dictionary.Treeview',
+                       background='#FFFFFF',
+                       foreground=BRAND_COLOR_TEXT,
+                       rowheight=25,
+                       fieldbackground='#FFFFFF',
+                       font=('Segoe UI', 9),
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=BRAND_COLOR_BORDER,
+                       lightcolor=BRAND_COLOR_BORDER,
+                       darkcolor='#B0B0B0')
+        
+        # Style specjalne - tabele Admin
+        style.configure('Admin.Treeview',
+                       background='#FFFFFF',
+                       foreground=BRAND_COLOR_TEXT,
+                       rowheight=25,
+                       fieldbackground='#FFFFFF',
+                       font=('Segoe UI', 9),
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=BRAND_COLOR_BORDER,
+                       lightcolor=BRAND_COLOR_BORDER,
+                       darkcolor='#B0B0B0')
+        
+        # Style SAP - nagłówki tabel (niebieski SAP) - domyślne
+        style.configure('Treeview.Heading',
+                       background=BRAND_COLOR_ACCENT,   # Niebieski SAP
+                       foreground='white',
+                       font=('Segoe UI', 9, 'bold'),
+                       borderwidth=1,
+                       relief='raised',
+                       bordercolor=BRAND_COLOR_BORDER,
+                       lightcolor='#ffffff',
+                       darkcolor='#666666')
+        
+        # Style specjalne - nagłówki Słowników (bold)
+        style.configure('Dictionary.Treeview.Heading',
+                       background=BRAND_COLOR_ACCENT,   # Niebieski SAP
+                       foreground='white',
+                       font=('Segoe UI', 10, 'bold'),  # Większy i bold
+                       borderwidth=1,
+                       relief='raised',
+                       bordercolor=BRAND_COLOR_BORDER,
+                       lightcolor='#ffffff',
+                       darkcolor='#666666')
+        
+        # Style specjalne - nagłówki Admin (normal)
+        style.configure('Admin.Treeview.Heading',
+                       background=BRAND_COLOR_ACCENT,   # Niebieski SAP
+                       foreground='white',
+                       font=('Segoe UI', 9),            # Normal weight
+                       borderwidth=1,
+                       relief='raised',
+                       bordercolor=BRAND_COLOR_BORDER,
+                       lightcolor='#ffffff',
+                       darkcolor='#666666')
+        
+        # Mapowanie SAP - ciemnoniebieski przy hover
+        style.map('Treeview.Heading',
+                 background=[('active', BRAND_COLOR_BG)],  # Ciemnoniebieski SAP
+                 relief=[('active', 'raised')])
+        
+        style.map('Treeview',
+                 background=[('selected', BRAND_COLOR_ACCENT)],
+                 foreground=[('selected', 'white')])
         
         # Element dla obramowań wierszy i kolumn
         style.configure('Treeview.Item',
@@ -222,43 +321,48 @@ def configure_ttk_styles(root):
                        relief='solid',
                        bordercolor='#cccccc')
         
-        style.configure('Treeview.Heading',
-                       background=BRAND_COLOR_ACCENT,
-                       foreground='white',
-                       font=('Segoe UI', 9, 'bold'),
-                       borderwidth=2,
-                       relief='raised',
-                       bordercolor=BRAND_COLOR_BG)  # Dodaj obramowanie nagłówków
-        
-        # Dodaj selection style dla lepszej widoczności
+        # Style SAP - selekcja w tabelach (niebieski SAP)
         style.map('Treeview',
-                 background=[('selected', BRAND_COLOR_ACCENT)],
+                 background=[('selected', BRAND_COLOR_ACCENT)],  # Niebieski SAP
                  foreground=[('selected', 'white')])
         
-        # Style dla Notebook (zakładki)
+        # Style SAP - zakładki (Notebook)
         style.configure('TNotebook',
-                       background=BRAND_COLOR_LIGHT,
+                       background=BRAND_COLOR_LIGHT,    # Jasnoszare tło SAP
                        borderwidth=0)
         
         style.configure('TNotebook.Tab',
-                       background='#e0e0e0',
-                       foreground='#333333',
+                       background="#E0E0E0",            # Szare nieaktywne zakładki SAP
+                       foreground=BRAND_COLOR_TEXT,
                        padding=[8, 4],
                        font=('Segoe UI', 9))
         
         style.map('TNotebook.Tab',
-                 background=[('selected', BRAND_COLOR_LIGHT),
-                            ('active', '#f0f0f0')],
-                 foreground=[('selected', '#000000')])
+                 background=[('selected', BRAND_COLOR_FRAME),  # Biała aktywna zakładka SAP
+                            ('active', BRAND_COLOR_ACCENT)],    # Niebieski SAP przy hover
+                 foreground=[('selected', BRAND_COLOR_TEXT),   # Ciemnoszary tekst SAP
+                            ('active', 'white')])
         
-        print("✅ Style TTK skonfigurowane pomyślnie")
+        # Style SAP - LabelFrame (sekcje)
+        style.configure('TLabelframe',
+                       background=BRAND_COLOR_FRAME,     # Białe tło SAP
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=BRAND_COLOR_BORDER)   # Szare obramowania SAP
+        
+        style.configure('TLabelframe.Label',
+                       background=BRAND_COLOR_FRAME,     # Białe tło SAP
+                       foreground=BRAND_COLOR_TEXT,      # Ciemnoszary tekst SAP
+                       font=('Segoe UI', 9, 'bold'))
+        
+        print("OK Style TTK skonfigurowane pomyślnie")
         
         # Zaplanuj konfigurację tagów Treeview po utworzeniu wszystkich widżetów
         root.after(100, lambda: configure_treeview_tags(root))
         root.after(200, lambda: configure_treeview_borders(root))  # Dodaj obramowania
         
     except Exception as e:
-        print(f"⚠️  Błąd konfiguracji stylów TTK: {e}")
+        print(f"UWAGA  Błąd konfiguracji stylów TTK: {e}")
 
 def configure_single_treeview_borders(tree):
     """Konfiguruj obramowania dla pojedynczej tabeli"""
@@ -273,11 +377,34 @@ def configure_single_treeview_borders(tree):
             tree.configure(
                 selectmode='extended'
             )
+            
+            # Wymuś separatory przez style SAP
+            style = ttk.Style()
+            style.configure('Bordered.Treeview',
+                          background='white',                  # Białe tło SAP
+                          foreground=BRAND_COLOR_TEXT,         # Ciemnoszary tekst SAP
+                          borderwidth=1,
+                          relief='solid',
+                          bordercolor=BRAND_COLOR_BORDER,      # Szare obramowania SAP
+                          lightcolor=BRAND_COLOR_BORDER,       # Separatory kolumn SAP
+                          darkcolor='#B0B0B0')                 # Separatory wierszy SAP
+            
+            style.configure('Bordered.Treeview.Heading',
+                          background=BRAND_COLOR_ACCENT,       # Niebieski SAP
+                          foreground='white',
+                          font=('Segoe UI', 9, 'bold'),
+                          borderwidth=1,
+                          relief='raised',
+                          bordercolor=BRAND_COLOR_BORDER)
+            
+            # Zastosuj styl do tabeli
+            tree.configure(style='Bordered.Treeview')
+            
         except Exception as e:
-            print(f"⚠️ Błąd konfiguracji podstawowej: {e}")
+            print(f"UWAGA Błąd konfiguracji podstawowej: {e}")
         
         # Definiuj tagi z konkretnymi kolorami
-        tree.tag_configure('evenrow', background='#f0f8ff', foreground='black')
+        tree.tag_configure('evenrow', background='#f8f9fa', foreground='black')
         tree.tag_configure('oddrow', background='white', foreground='black')
         
         # Hook dla kolorowania wierszy
@@ -285,6 +412,16 @@ def configure_single_treeview_borders(tree):
             try:
                 items = tree.get_children()
                 for i, item in enumerate(items):
+                    current_tags = list(tree.item(item, 'tags'))
+                    
+                    # Zachowaj ważne tagi statusu (gen, ungen)
+                    important_tags = [tag for tag in current_tags if tag in ['gen', 'ungen']]
+                    
+                    # Jeśli ma ważny tag statusu, zachowaj go bez zmian
+                    if important_tags:
+                        continue
+                    
+                    # Dla pozostałych stosuj alternujące kolory
                     tag = 'evenrow' if i % 2 == 0 else 'oddrow'
                     tree.item(item, tags=[tag])
             except Exception as e:
@@ -299,10 +436,10 @@ def configure_single_treeview_borders(tree):
         # Zastosuj kolory natychmiast
         colorize_rows()
         
-        print(f"✅ Obramowania skonfigurowane dla tabeli (tylko alternujące kolory)")
+        print(f"OK Obramowania skonfigurowane dla tabeli (tylko alternujące kolory)")
         
     except Exception as e:
-        print(f"⚠️ Błąd obramowań tabeli: {e}")
+        print(f"UWAGA Błąd obramowań tabeli: {e}")
 
 def configure_treeview_borders(root):
     """Dodaj faktyczne linie obramowania do tabel"""
@@ -404,10 +541,10 @@ def configure_treeview_borders(root):
                                                               outline='#999999', width=1,
                                                               tags="border_line")
                                         
-                                        print(f"✅ Narysowano linie: {w}x{h}")
+                                        print(f"OK Narysowano linie: {w}x{h}")
                                         
                                 except Exception as e:
-                                    print(f"⚠️ Błąd rysowania linii: {e}")
+                                    print(f"UWAGA Błąd rysowania linii: {e}")
                             
                             # Aktualizuj po zmianach
                             widget.bind('<Configure>', lambda e: root.after_idle(draw_grid))
@@ -417,7 +554,7 @@ def configure_treeview_borders(root):
                             root.after(500, draw_grid)
                             
                         except Exception as e:
-                            print(f"⚠️ Błąd Canvas overlay: {e}")
+                            print(f"UWAGA Błąd Canvas overlay: {e}")
                     
                     # Uruchom dodawanie Canvas z opóźnieniem
                     root.after(300, add_border_canvas)
@@ -425,27 +562,35 @@ def configure_treeview_borders(root):
                     # 5. Zastosuj kolory natychmiast
                     apply_row_colors()
                     
-                    print(f"✅ Rzeczywiste obramowania dodane")
+                    print(f"OK Rzeczywiste obramowania dodane")
                     
                 except Exception as e:
-                    print(f"⚠️ Błąd obramowań: {e}")
+                    print(f"UWAGA Błąd obramowań: {e}")
             
             # Rekurencyjnie
             for child in widget.winfo_children():
                 apply_real_borders(child)
         
         apply_real_borders(root)
-        print("✅ Rzeczywiste obramowania tabel skonfigurowane")
+        print("OK Rzeczywiste obramowania tabel skonfigurowane")
         
     except Exception as e:
-        print(f"⚠️ Błąd konfiguracji obramowań: {e}")
+        print(f"UWAGA Błąd konfiguracji obramowań: {e}")
 
 def configure_treeview_tags(root):
     """Konfiguruje tagi kolorystyczne dla wszystkich Treeview w aplikacji"""
     try:
         def configure_widget_tags(widget):
             if isinstance(widget, ttk.Treeview):
-                # Bardziej wyraziste kolory tagów
+                # Alternujące kolory wierszy - bardziej widoczne
+                widget.tag_configure('odd', 
+                                   background='#F8F8F8',   # Jasnoszary
+                                   foreground=BRAND_COLOR_TEXT)
+                widget.tag_configure('even', 
+                                   background='#FFFFFF',   # Biały
+                                   foreground=BRAND_COLOR_TEXT)
+                
+                # Kolory statusu - bardziej wyraziste
                 widget.tag_configure('gen', 
                                    background='#d4edda',   # Jasnozielony
                                    foreground='#155724',   # Ciemnozielony
@@ -454,16 +599,49 @@ def configure_treeview_tags(root):
                                    background='#f8d7da',   # Jasnoróżowy
                                    foreground='#721c24',   # Ciemnoczerwony  
                                    font=('Segoe UI', 9))
+                
+                # Dodaj automatyczne kolorowanie wierszy
+                def apply_alternating_colors():
+                    """Stosuje alternujące kolory do wszystkich wierszy, zachowując kolory statusu"""
+                    children = widget.get_children()
+                    for i, child in enumerate(children):
+                        current_tags = list(widget.item(child, 'tags'))
+                        
+                        # Zachowaj ważne tagi statusu
+                        important_tags = [tag for tag in current_tags if tag in ['gen', 'ungen']]
+                        
+                        # Jeśli ma ważny tag statusu, nie zmieniaj kolorów
+                        if important_tags:
+                            continue
+                            
+                        # Dla pozostałych wierszy stosuj alternujące kolory
+                        if i % 2 == 0:
+                            # Usuń stare tagi kolorów alternujących
+                            tags = [tag for tag in current_tags if tag not in ['odd', 'even']]
+                            tags.append('even')
+                            widget.item(child, tags=tags)
+                        else:
+                            # Usuń stare tagi kolorów alternujących
+                            tags = [tag for tag in current_tags if tag not in ['odd', 'even']]
+                            tags.append('odd')
+                            widget.item(child, tags=tags)
+                
+                # Zastosuj kolory przy zmianie zawartości
+                widget.bind('<<TreeviewOpen>>', lambda e: widget.after(10, apply_alternating_colors))
+                widget.bind('<<TreeviewClose>>', lambda e: widget.after(10, apply_alternating_colors))
+                
+                # Pierwsze zastosowanie
+                widget.after(100, apply_alternating_colors)
             
             # Rekurencyjnie przeglądaj dzieci
             for child in widget.winfo_children():
                 configure_widget_tags(child)
         
         configure_widget_tags(root)
-        print("✅ Tagi Treeview skonfigurowane pomyślnie")
+        print("OK Tagi Treeview skonfigurowane pomyślnie")
         
     except Exception as e:
-        print(f"⚠️  Błąd konfiguracji tagów Treeview: {e}")
+        print(f"UWAGA  Błąd konfiguracji tagów Treeview: {e}")
 
 @dataclass
 class RMKItem:
@@ -624,8 +802,14 @@ class Splash(tk.Toplevel):
         print(f"🌟 Debug splash - geometria: {w}x{h}+{x}+{y}")
         print(f"🌟 Debug splash - używam kolorów: bg={bg_color}, fg={yellow_color}")
         
-        # Wymuś kolory bezpośrednio
-        tk.Label(self, text=COMPANY_NAME, fg=yellow_color, bg=bg_color, font=("Segoe UI", 22, "bold")).pack(pady=(40, 10))
+        # Wymuś kolory bezpośrednio - żółte litery bez dodatkowego tła
+        company_label = tk.Label(self, text=COMPANY_NAME, fg=yellow_color, bg=bg_color, 
+                                font=("Segoe UI", 22, "bold"))
+        company_label.pack(pady=(40, 10))
+        
+        # Dodatkowe formatowanie żeby usunąć tło wokół liter
+        company_label.configure(relief='flat', bd=0, highlightthickness=0)
+        
         tk.Label(self, text=APP_NAME, fg="white", bg=bg_color, font=("Segoe UI", 16)).pack()
         tk.Label(self, text="Wczytywanie...", fg="#D0E3FF", bg=bg_color, font=("Segoe UI", 10)).pack(pady=20)
         
@@ -765,13 +949,13 @@ class ItemDialog(tk.Toplevel):
         except Exception:
             is_admin = False
         if is_admin:
-            print(f"🏢 Debug dialog - admin widzi firmy: {master.companies}")
+            print(f"FIRMA Debug dialog - admin widzi firmy: {master.companies}")
             self.cbx_firma = ttk.Combobox(frame, values=master.companies, state='readonly')
             if master.companies:
                 self.cbx_firma.current(0)
         else:
             cur = getattr(master, 'current_company', master.companies[0] if master.companies else '')
-            print(f"🏢 Debug dialog - user widzi firmę: {cur}")
+            print(f"FIRMA Debug dialog - user widzi firmę: {cur}")
             # show only current company and disable changes for non-admins
             self.cbx_firma = ttk.Combobox(frame, values=[cur], state='disabled')
             if cur:
@@ -1060,7 +1244,7 @@ class RMKApp(tk.Tk):
         self.withdraw()
         self.title(APP_NAME)
         self.geometry("1200x760")
-        self.configure(bg=BRAND_COLOR_BG)
+        self.configure(bg=BRAND_COLOR_LIGHT)  # Używaj lekko szarego tła
         
         # Ustaw ikonę okna jeśli istnieje
         try:
@@ -1077,11 +1261,11 @@ class RMKApp(tk.Tk):
         # load persisted state (if any)
         self._load_state()
 
-        print("🚀 Debug main - tworzę splash screen")
+        print(">>> Debug main - tworzę splash screen")
         Splash(self)
-        print("🚀 Debug main - czekam na zamknięcie splash")
+        print(">>> Debug main - czekam na zamknięcie splash")
         self.wait_window(self.winfo_children()[-1])
-        print("🚀 Debug main - splash zamknięty")
+        print(">>> Debug main - splash zamknięty")
 
         # Keep the main window hidden until successful login
         max_attempts = 3
@@ -1250,13 +1434,18 @@ class RMKApp(tk.Tk):
             import tempfile
             user_data_dir = os.path.join(os.path.expanduser("~"), "RMK_insGT")
             os.makedirs(user_data_dir, exist_ok=True)
-            return os.path.join(user_data_dir, 'data.json')
+            data_path = os.path.join(user_data_dir, 'data.json')
+            print(f"📂 EXE używa pliku danych: {data_path}")
+            return data_path
         else:
             # W rozwoju - zapisuj w workspace
-            return '/workspaces/RMK/data.json'
+            dev_path = '/workspaces/RMK/data.json'
+            print(f"📂 PY używa pliku danych: {dev_path}")
+            return dev_path
 
     def _load_state(self):
         path = self._state_file()
+        print(f"🔄 Ładuję dane z: {path}")
         try:
             if os.path.exists(path):
                 with open(path, 'r', encoding='utf-8') as f:
@@ -1277,14 +1466,18 @@ class RMKApp(tk.Tk):
                 for item in self.rmk_items:
                     if not hasattr(item, 'uwagi'):
                         item.uwagi = ""
-                        
+                
                 self.view_state = obj.get('view_state', {})
                 
                 # Debug: sprawdź załadowane firmy
-                print(f"🏢 Debug companies - załadowano z pliku: {self.companies}")
+                print(f"FIRMA Debug companies - załadowano z pliku: {self.companies}")
+                print(f"OK Załadowano dane - firm: {len(self.companies)}, użytkowników: {len(self.users)}")
+            else:
+                print(f"UWAGA Plik danych nie istnieje: {path}")
         except Exception as e:
-            print('Error loading state:', e)
-            print(f"🏢 Debug companies - używam domyślnych: {self.companies}")
+            print(f"BŁĄD Błąd ładowania danych: {e}")
+            print(f"FIRMA Debug companies - używam domyślnych: {self.companies}")
+            # Jeśli nie można załadować, utwórz domyślne dane
 
     def _save_state(self):
         path = self._state_file()
@@ -1452,7 +1645,7 @@ Funkcjonalności:
     def _add_logo_header(self):
         """Dodaj logo w lewym górnym rogu aplikacji"""
         try:
-            print("🖼️ Dodaję logo do głównego okna...")
+            print("IMG Dodaję logo do głównego okna...")
             
             # Znajdź logo sprawdzając różne lokalizacje
             base_dir = resource_path("")
@@ -1486,7 +1679,7 @@ Funkcjonalności:
                     desktop_dir = os.path.join(os.path.expanduser("~"), "Desktop")
                     if os.path.isdir(desktop_dir):
                         search_locations.append(desktop_dir)
-                        print(f"🖥️ Dodano pulpit: {desktop_dir}")
+                        print(f"MONITOR Dodano pulpit: {desktop_dir}")
             except:
                 pass
             
@@ -1508,17 +1701,22 @@ Funkcjonalności:
             ]
             
             print(f"🔍 Sprawdzam {len(search_locations)} lokalizacji...")
+            print(f"📋 Szukam plików: {logo_filenames}")
             
             # Przeszukaj wszystkie lokalizacje
             for location in search_locations:
                 print(f"📂 Sprawdzam: {location}")
                 try:
                     if os.path.isdir(location):
+                        # Pokaż co jest w folderze
+                        files_in_dir = os.listdir(location)
+                        print(f"   FILES Pliki w folderze: {[f for f in files_in_dir if f.lower().endswith(('.png', '.jpg', '.jpeg'))]}")
+                        
                         for filename in logo_filenames:
                             potential_path = os.path.join(location, filename)
                             if os.path.exists(potential_path):
                                 logo_path = potential_path
-                                print(f"✅ ZNALEZIONO LOGO: {logo_path}")
+                                print(f"OK ZNALEZIONO LOGO: {logo_path}")
                                 break
                         
                         if logo_path:
@@ -1531,7 +1729,7 @@ Funkcjonalności:
                                     potential_path = os.path.join(location, file)
                                     if os.path.exists(potential_path):
                                         logo_path = potential_path
-                                        print(f"✅ ZNALEZIONO LOGO (wzorzec): {logo_path}")
+                                        print(f"OK ZNALEZIONO LOGO (wzorzec): {logo_path}")
                                         break
                             if logo_path:
                                 break
@@ -1539,22 +1737,22 @@ Funkcjonalności:
                             pass
                             
                 except Exception as e:
-                    print(f"⚠️ Błąd sprawdzania {location}: {e}")
+                    print(f"UWAGA Błąd sprawdzania {location}: {e}")
             
             if logo_path and os.path.exists(logo_path):
                 try:
-                    # Stwórz header frame
-                    header_frame = tk.Frame(self, bg=BRAND_COLOR_BG, height=80)
-                    header_frame.pack(fill=tk.X, pady=(0, 8))
+                    # Stwórz header frame - jasny szary nagłówek z logo (mniejszy)
+                    header_frame = tk.Frame(self, bg=BRAND_COLOR_HEADER, height=50)
+                    header_frame.pack(fill=tk.X, pady=(0, 4))
                     header_frame.pack_propagate(False)  # Zachowaj stałą wysokość
                     
                     # Załaduj i przeskaluj logo
                     logo_img = tk.PhotoImage(file=logo_path)
                     
-                    # Przeskaluj do maksymalnie 60px wysokości
+                    # Przeskaluj do maksymalnie 40px wysokości
                     original_width = logo_img.width()
                     original_height = logo_img.height()
-                    max_height = 60
+                    max_height = 40
                     
                     if original_height > max_height:
                         scale_factor = max_height / original_height
@@ -1567,50 +1765,50 @@ Funkcjonalności:
                     # Dodaj logo do lewej strony
                     logo_label = tk.Label(header_frame, 
                                         image=logo_img, 
-                                        bg=BRAND_COLOR_BG,
+                                        bg=BRAND_COLOR_HEADER,
                                         bd=0)
                     logo_label.image = logo_img  # Zachowaj referencję
-                    logo_label.pack(side=tk.LEFT, padx=(16, 8), pady=8)
+                    logo_label.pack(side=tk.LEFT, padx=(8, 4), pady=4)
                     
-                    # Dodaj tytuł aplikacji obok logo
+                    # Dodaj tytuł aplikacji obok logo w stylu SAP
                     title_label = tk.Label(header_frame,
                                          text=f"{COMPANY_NAME} | {APP_NAME}",
-                                         font=("Segoe UI", 16, "bold"),
-                                         fg=BRAND_COLOR_YELLOW,
-                                         bg=BRAND_COLOR_BG)
-                    title_label.pack(side=tk.LEFT, padx=(8, 0), pady=8, anchor='w')
+                                         font=("Segoe UI", 12, "bold"),
+                                         fg=BRAND_COLOR_TEXT,  # Ciemnoszary tekst SAP
+                                         bg=BRAND_COLOR_HEADER)
+                    title_label.pack(side=tk.LEFT, padx=(4, 0), pady=4, anchor='w')
                     
-                    print(f"✅ Logo dodane do głównego okna ({original_width}x{original_height}) z: {logo_path}")
+                    print(f"OK Logo dodane do głównego okna ({original_width}x{original_height}) z: {logo_path}")
                     
                 except Exception as e:
-                    print(f"⚠️ Błąd ładowania logo do GUI: {e}")
+                    print(f"UWAGA Błąd ładowania logo do GUI: {e}")
                     # Dodaj placeholder jeśli logo się nie załaduje
                     self._add_text_header()
             else:
-                print("⚠️ Nie znaleziono logo w żadnej lokalizacji - dodaję tylko tytuł")
+                print("UWAGA Nie znaleziono logo w żadnej lokalizacji - dodaję tylko tytuł")
                 print(f"🔍 Sprawdzono lokalizacje: {search_locations}")
                 self._add_text_header()
                 
         except Exception as e:
-            print(f"⚠️ Błąd dodawania logo header: {e}")
+            print(f"UWAGA Błąd dodawania logo header: {e}")
             # Fallback - tylko tekst
             self._add_text_header()
     
     def _add_text_header(self):
         """Fallback header z samym tekstem"""
         try:
-            header_frame = tk.Frame(self, bg=BRAND_COLOR_BG, height=60)
-            header_frame.pack(fill=tk.X, pady=(0, 8))
+            header_frame = tk.Frame(self, bg=BRAND_COLOR_HEADER, height=50)
+            header_frame.pack(fill=tk.X, pady=(0, 4))
             header_frame.pack_propagate(False)
             
             title_label = tk.Label(header_frame,
                                  text=f"{COMPANY_NAME} | {APP_NAME}",
-                                 font=("Segoe UI", 18, "bold"),
-                                 fg=BRAND_COLOR_YELLOW,
-                                 bg=BRAND_COLOR_BG)
-            title_label.pack(pady=16)
+                                 font=("Segoe UI", 14, "bold"),
+                                 fg=BRAND_COLOR_TEXT,  # Ciemnoszary tekst SAP
+                                 bg=BRAND_COLOR_HEADER)
+            title_label.pack(pady=8)
         except Exception as e:
-            print(f"⚠️ Błąd text header: {e}")
+            print(f"UWAGA Błąd text header: {e}")
 
     def _build_gui(self):
         self.status_var = tk.StringVar()
@@ -1639,20 +1837,22 @@ Funkcjonalności:
 
     def _build_tab_lista(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło dla zakładki
         nb.add(tab, text="Lista RMK")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
-        create_btn(self, toolbar, text="➕ Dodaj", command=self.add_item, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(toolbar, text="🍀 Edytuj", command=self.edit_item).pack(side=tk.LEFT, padx=4)
-        ttk.Button(toolbar, text="🗑️ Usuń", command=self.delete_item).pack(side=tk.LEFT, padx=4)
-        create_btn(self, toolbar, text="📅 Generuj harmonogram", command=self.generate_harmonogram, bootstyle='primary').pack(side=tk.LEFT, padx=4)
-        ttk.Button(toolbar, text="📥 Import Excel", command=self.import_excel).pack(side=tk.LEFT, padx=4)
+        create_btn(self, toolbar, text="+ Dodaj", command=self.add_item, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(toolbar, text="Edytuj", command=self.edit_item).pack(side=tk.LEFT, padx=4)
+        ttk.Button(toolbar, text="Usuń", command=self.delete_item).pack(side=tk.LEFT, padx=4)
+        create_btn(self, toolbar, text="Generuj harmonogram", command=self.generate_harmonogram, bootstyle='primary').pack(side=tk.LEFT, padx=4)
+        ttk.Button(toolbar, text="Import Excel", command=self.import_excel).pack(side=tk.LEFT, padx=4)
         # company switch (allow changing current company context)
         ttk.Button(toolbar, text="🔁 Zmień firmę", command=self._change_company).pack(side=tk.RIGHT, padx=4)
         columns = ("id", "opis", "data_start", "data_koniec", "liczba_mies", "kwota", "kategoria", "konto", "konto_rmk", "faktura", "kontrahent", "status", "uwagi")
         
         # Dodaj Frame z ramką wokół tabeli
-        table_frame = tk.Frame(tab, bd=2, relief='solid', bg=BRAND_COLOR_BG)
+        # Główna ramka tabeli w stylu SAP - białe tło z szarym obramowaniem
+        table_frame = tk.Frame(tab, bd=1, relief='solid', bg=BRAND_COLOR_FRAME, highlightbackground=BRAND_COLOR_BORDER, highlightthickness=1)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
         
         # Utwórz frame dla tabeli ze scrollbarami
@@ -1660,6 +1860,9 @@ Funkcjonalności:
         tree_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         self.tree = ttk.Treeview(tree_scroll_frame, columns=columns, show='headings', height=14)
+        
+        # Wymuś separatory i obramowania
+        configure_single_treeview_borders(self.tree)
         
         # Dodaj scrollbary
         v_scrollbar = ttk.Scrollbar(tree_scroll_frame, orient="vertical", command=self.tree.yview)
@@ -1726,6 +1929,7 @@ Funkcjonalności:
 
     def _build_tab_harmonogram(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="Harmonogram")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
@@ -1739,8 +1943,8 @@ Funkcjonalności:
         # usuń przycisk filtruj (nieaktywny)
         # USUNIĘTO: przycisk podsumowania - jest w kolejnej zakładce
         
-        # Dodaj Frame z ramką wokół tabeli harmonogramu
-        harmo_table_frame = tk.Frame(tab, bd=2, relief='solid', bg=BRAND_COLOR_BG)
+        # Dodaj Frame z ramką wokół tabeli harmonogramu w stylu SAP
+        harmo_table_frame = tk.Frame(tab, bd=1, relief='solid', bg=BRAND_COLOR_FRAME, highlightbackground=BRAND_COLOR_BORDER, highlightthickness=1)
         harmo_table_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
         
         # Utwórz frame dla tabeli harmonogramu ze scrollbarami
@@ -1749,6 +1953,9 @@ Funkcjonalności:
         
         # Harmonogram - dynamiczne kolumny będą tworzone przy generowaniu
         self.harmo_tree = ttk.Treeview(harmo_scroll_frame, show='headings', height=16)
+        
+        # Wymuś separatory i obramowania
+        configure_single_treeview_borders(self.harmo_tree)
         
         # Dodaj scrollbary
         harmo_v_scrollbar = ttk.Scrollbar(harmo_scroll_frame, orient="vertical", command=self.harmo_tree.yview)
@@ -1765,6 +1972,7 @@ Funkcjonalności:
 
     def _build_tab_podsumowanie(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="Podsumowanie")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
@@ -1853,6 +2061,7 @@ Funkcjonalności:
 
     def _build_tab_rmk_next_year(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="RMK - następny rok")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
@@ -1990,6 +2199,7 @@ Funkcjonalności:
 
     def _build_tab_rmk_by_years(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="RMK wg lat")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
@@ -2124,6 +2334,7 @@ Funkcjonalności:
 
     def _build_tab_slownik(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="Słowniki")
         topf = ttk.Frame(tab)
         topf.pack(fill=tk.X, padx=8, pady=6)
@@ -2131,15 +2342,15 @@ Funkcjonalności:
         lf.pack(fill=tk.X, padx=8, pady=6)
         btnf = ttk.Frame(lf)
         btnf.pack(anchor='e', pady=4)
-        self._btn(btnf, text="➕ Dodaj", command=self.add_category, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="🍀 Edytuj", command=self.edit_category).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="🗑️ Usuń", command=self.delete_category).pack(side=tk.LEFT, padx=4)
+        self._btn(btnf, text="+ Dodaj", command=self.add_category, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Edit Edytuj", command=self.edit_category).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Usuń", command=self.delete_category).pack(side=tk.LEFT, padx=4)
         
         # Frame ze scrollbarem dla kategorii
         cat_frame = ttk.Frame(lf)
         cat_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         
-        self.cat_tree = ttk.Treeview(cat_frame, columns=("kategoria",), show='headings', height=3)
+        self.cat_tree = ttk.Treeview(cat_frame, columns=("kategoria",), show='headings', height=3, style='Dictionary.Treeview')
         cat_scrollbar = ttk.Scrollbar(cat_frame, orient="vertical", command=self.cat_tree.yview)
         self.cat_tree.configure(yscrollcommand=cat_scrollbar.set)
         
@@ -2153,15 +2364,15 @@ Funkcjonalności:
         lf2.pack(fill=tk.X, padx=8, pady=6)
         btnf2 = ttk.Frame(lf2)
         btnf2.pack(anchor='e', pady=4)
-        self._btn(btnf2, text="➕ Dodaj", command=self.add_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf2, text="🍀 Edytuj", command=self.edit_account).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf2, text="🗑️ Usuń", command=self.delete_account).pack(side=tk.LEFT, padx=4)
+        self._btn(btnf2, text="+ Dodaj", command=self.add_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf2, text="Edit Edytuj", command=self.edit_account).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf2, text="Usuń", command=self.delete_account).pack(side=tk.LEFT, padx=4)
         
         # Frame ze scrollbarem dla kont księgowych
         acc_frame = ttk.Frame(lf2)
         acc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         
-        self.acc_tree = ttk.Treeview(acc_frame, columns=("konto", "opis"), show='headings', height=3)
+        self.acc_tree = ttk.Treeview(acc_frame, columns=("konto", "opis"), show='headings', height=3, style='Dictionary.Treeview')
         acc_scrollbar = ttk.Scrollbar(acc_frame, orient="vertical", command=self.acc_tree.yview)
         self.acc_tree.configure(yscrollcommand=acc_scrollbar.set)
         
@@ -2176,15 +2387,15 @@ Funkcjonalności:
         lf3.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
         btnf3 = ttk.Frame(lf3)
         btnf3.pack(anchor='e', pady=4)
-        self._btn(btnf3, text="➕ Dodaj", command=self.add_rmk_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf3, text="🍀 Edytuj", command=self.edit_rmk_account).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf3, text="🗑️ Usuń", command=self.delete_rmk_account).pack(side=tk.LEFT, padx=4)
+        self._btn(btnf3, text="+ Dodaj", command=self.add_rmk_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf3, text="Edit Edytuj", command=self.edit_rmk_account).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf3, text="Usuń", command=self.delete_rmk_account).pack(side=tk.LEFT, padx=4)
         
         # Frame ze scrollbarem dla kont RMK
         rmk_acc_frame = ttk.Frame(lf3)
         rmk_acc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         
-        self.rmk_acc_tree = ttk.Treeview(rmk_acc_frame, columns=("konto", "opis"), show='headings', height=6)
+        self.rmk_acc_tree = ttk.Treeview(rmk_acc_frame, columns=("konto", "opis"), show='headings', height=6, style='Dictionary.Treeview')
         rmk_acc_scrollbar = ttk.Scrollbar(rmk_acc_frame, orient="vertical", command=self.rmk_acc_tree.yview)
         self.rmk_acc_tree.configure(yscrollcommand=rmk_acc_scrollbar.set)
         
@@ -2205,21 +2416,22 @@ Funkcjonalności:
         if not self.current_user_admin:
             return
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="Admin")
         ttk.Label(tab, text="Użytkownicy systemu", background=BRAND_COLOR_LIGHT).pack(anchor='w', padx=8, pady=6)
         uframe = ttk.Frame(tab)
         uframe.pack(fill=tk.X, padx=8, pady=4)
         btnf = ttk.Frame(uframe)
         btnf.pack(anchor='e', pady=4)
-        self._btn(btnf, text="➕ Dodaj", command=self.add_user, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="🍀 Edytuj", command=self.edit_user).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="🗑️ Usuń", command=self.delete_user).pack(side=tk.LEFT, padx=4)
+        self._btn(btnf, text="+ Dodaj", command=self.add_user, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Edit Edytuj", command=self.edit_user).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Usuń", command=self.delete_user).pack(side=tk.LEFT, padx=4)
         
         # Frame ze scrollbarem dla użytkowników
         user_frame = ttk.Frame(uframe)
         user_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         
-        self.user_tree = ttk.Treeview(user_frame, columns=("uzytkownik", "rola", "firmy"), show='headings', height=5)
+        self.user_tree = ttk.Treeview(user_frame, columns=("uzytkownik", "rola", "firmy"), show='headings', height=5, style='Admin.Treeview')
         user_scrollbar = ttk.Scrollbar(user_frame, orient="vertical", command=self.user_tree.yview)
         self.user_tree.configure(yscrollcommand=user_scrollbar.set)
         
@@ -2237,15 +2449,15 @@ Funkcjonalności:
         cframe.pack(fill=tk.X, padx=8, pady=4)
         btnf2 = ttk.Frame(cframe)
         btnf2.pack(anchor='e', pady=4)
-        self._btn(btnf2, text="➕ Dodaj", command=self.add_company, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf2, text="🍀 Edytuj", command=self.edit_company).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf2, text="🗑️ Usuń", command=self.delete_company).pack(side=tk.LEFT, padx=4)
+        self._btn(btnf2, text="+ Dodaj", command=self.add_company, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf2, text="Edit Edytuj", command=self.edit_company).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf2, text="Usuń", command=self.delete_company).pack(side=tk.LEFT, padx=4)
         
         # Frame ze scrollbarem dla firm
         company_frame = ttk.Frame(cframe)
         company_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         
-        self.company_tree = ttk.Treeview(company_frame, columns=("firma",), show='headings', height=5)
+        self.company_tree = ttk.Treeview(company_frame, columns=("firma",), show='headings', height=5, style='Admin.Treeview')
         company_scrollbar = ttk.Scrollbar(company_frame, orient="vertical", command=self.company_tree.yview)
         self.company_tree.configure(yscrollcommand=company_scrollbar.set)
         
@@ -2259,6 +2471,7 @@ Funkcjonalności:
 
     def _build_tab_reports(self, nb):
         tab = ttk.Frame(nb)
+        tab.configure(style='Light.TFrame')  # Lekko szare tło
         nb.add(tab, text="Raporty")
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
@@ -2327,7 +2540,7 @@ Funkcjonalności:
                 continue
             # format kwota for display using thousand_sep
             kw = thousand_sep(it.kwota)
-            status_sym = '✅' if getattr(it, 'harmonogram_generated', False) else '❌'
+            status_sym = '✓' if getattr(it, 'harmonogram_generated', False) else '✗'
             uwagi_text = getattr(it, 'uwagi', '') or ''  # Obsługa starych danych bez pola uwagi
             self.tree.insert('', 'end', iid=str(it.id), values=(it.id, it.opis, it.data_start.isoformat(), it.data_koniec.isoformat() if it.data_koniec else "", it.liczba_mies, kw, it.kategoria, it.konto_kosztowe, it.konto_rmk, it.numer_faktury, it.kontrahent, status_sym, uwagi_text))
             # color row green if generated, red otherwise
@@ -2340,8 +2553,14 @@ Funkcjonalności:
                 pass
         # tag styles (ttk Treeview doesn't support tag foreground/bg directly in all themes)
         try:
-            self.tree.tag_configure('gen', background='#e6ffed')
-            self.tree.tag_configure('ungen', background='#ffecec')
+            self.tree.tag_configure('gen', background='#d4edda', foreground="#7BDD92")  # Wyrazisty zielony
+            self.tree.tag_configure('ungen', background='#f8d7da', foreground="#e97f8a")  # Wyrazisty czerwony
+        except Exception:
+            pass
+        
+        # Wymóż odświeżenie kolorów po załadowaniu danych
+        try:
+            self.tree.after(50, lambda: self.tree.event_generate('<<TreeviewOpen>>'))
         except Exception:
             pass
         # update harmonogram item combobox values
@@ -3721,21 +3940,21 @@ Funkcjonalności:
                                     ir = ImageReader(candidate_path)
                                     iw, ih = ir.getSize()
                                     if iw > 10 and ih > 10:  # Min 10x10 pikseli
-                                        print(f"✅ Debug logo - KANDYDAT: {candidate_path} ({iw}x{ih}, {file_size}b)")
+                                        print(f"OK Debug logo - KANDYDAT: {candidate_path} ({iw}x{ih}, {file_size}b)")
                                         if file_size > best_size:
                                             best_logo = candidate_path
                                             best_size = file_size
                                             print(f"🎯 Debug logo - NOWY NAJLEPSZY: {best_logo}")
                                     else:
-                                        print(f"❌ Debug logo - za małe wymiary: {candidate_path} ({iw}x{ih})")
+                                        print(f"BŁĄD Debug logo - za małe wymiary: {candidate_path} ({iw}x{ih})")
                                 else:
-                                    print(f"❌ Debug logo - za mały plik: {candidate_path} ({file_size}b)")
+                                    print(f"BŁĄD Debug logo - za mały plik: {candidate_path} ({file_size}b)")
                             except Exception as e:
-                                print(f"❌ Debug logo - błąd ładowania: {candidate_path} - {e}")
+                                print(f"BŁĄD Debug logo - błąd ładowania: {candidate_path} - {e}")
                     
                     logo_path = best_logo
                     if logo_path:
-                        print(f"✅ Debug logo - WYBRANY FINALNIE: {logo_path}")
+                        print(f"OK Debug logo - WYBRANY FINALNIE: {logo_path}")
                         
                 # fallback to common filenames in project root
                 if not logo_path:
@@ -3745,10 +3964,10 @@ Funkcjonalności:
                         print(f"🔍 Debug logo - sprawdzam fallback: {p}")
                         if os.path.exists(p):
                             logo_path = p
-                            print(f"✅ Debug logo - ZNALEZIONO FALLBACK: {logo_path}")
+                            print(f"OK Debug logo - ZNALEZIONO FALLBACK: {logo_path}")
                             break
             except Exception as e:
-                print(f"❌ Debug logo - błąd wyszukiwania: {e}")
+                print(f"BŁĄD Debug logo - błąd wyszukiwania: {e}")
                 logo_path = None
 
             print(f"🎯 Debug logo - FINALNY WYNIK: {logo_path}")
@@ -3757,7 +3976,7 @@ Funkcjonalności:
             logo_element = None
             if logo_path:
                 try:
-                    print(f"🖼️ Debug logo - próbuję załadować: {logo_path}")
+                    print(f"IMG Debug logo - próbuję załadować: {logo_path}")
                     ir = ImageReader(logo_path)
                     iw, ih = ir.getSize()
                     # Zmniejszone logo dla nagłówka - max 80px szerokości
@@ -3766,13 +3985,13 @@ Funkcjonalności:
                     img_w = iw * scale
                     img_h = ih * scale
                     logo_element = Image(logo_path, width=img_w, height=img_h)
-                    print(f"✅ Debug logo - przygotowano dla nagłówka ({img_w}x{img_h})")
+                    print(f"OK Debug logo - przygotowano dla nagłówka ({img_w}x{img_h})")
                 except Exception as e:
-                    print(f"❌ Debug logo - błąd ładowania: {e}")
+                    print(f"BŁĄD Debug logo - błąd ładowania: {e}")
                     logo_element = None
             
             if not logo_element:
-                print("❌ Debug logo - brak logo w nagłówku PDF")
+                print("BŁĄD Debug logo - brak logo w nagłówku PDF")
 
             # Header: app name + title + logo w tabeli (use registered font)
             title_style = styles.get('Title', styles['Normal']).clone('CustomTitle')
@@ -3897,15 +4116,35 @@ Funkcjonalności:
 
 if __name__ == '__main__':
     try:
+        print(">>> Uruchamiam aplikację RMK insGT...")
+        
+        # Sprawdź czy jesteśmy w exe i zapisz podstawowe info
+        if getattr(sys, 'frozen', False):
+            print("📦 Uruchamianie jako EXE")
+            try:
+                log_dir = os.path.join(os.path.expanduser("~"), "RMK_insGT")
+                os.makedirs(log_dir, exist_ok=True)
+                log_file = os.path.join(log_dir, 'debug.log')
+                
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    f.write(f"=== RMK insGT Debug Log ===\n")
+                    f.write(f"Data: {datetime.now()}\n")
+                    f.write(f"System: {os.name}\n")
+                    f.write(f"Uruchamianie...\n\n")
+                
+                print(f"📝 Logi exe: {log_file}")
+            except Exception as log_error:
+                print(f"UWAGA Błąd logowania: {log_error}")
+        else:
+            print("Python Uruchamianie jako Python script")
+        
         # Poprawka dla Windows - ustaw kodowanie stdout/stderr
         if os.name == 'nt':
-            import sys
-            if hasattr(sys.stdout, 'reconfigure'):
-                try:
-                    sys.stdout.reconfigure(encoding='utf-8')
-                    sys.stderr.reconfigure(encoding='utf-8')
-                except Exception:
-                    pass
+            try:
+                sys.stdout.reconfigure(encoding='utf-8')
+                sys.stderr.reconfigure(encoding='utf-8')
+            except Exception:
+                pass
         
         app = RMKApp()
         app.mainloop()
