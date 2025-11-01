@@ -1,5 +1,8 @@
 pyinstaller>=5.0
 openpyxl>=3.0.0
 reportlab>=3.6.0
-ttkbootstrap>=1.0.0
-Pillow>=8.0.0
+ttkbootstrap>=1.10.0
+Pillow>=9.0.0
+# Dodatkowe dla stabilności kolorów w exe
+tkinter-tooltip>=2.0.0
+packaging>=21.0

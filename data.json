@@ -45,22 +45,96 @@
       "opis": "RMK - amortyzacja środków trwałych"
     }
   ],
+  "accounts_by_company": {
+    "IntegritasAD": [
+      {
+        "konto": "401-1",
+        "opis": "Koszty podstawowe IntegritasAD"
+      },
+      {
+        "konto": "640",
+        "opis": "Rozliczenia miedzyokresowe IntegritasAD"
+      }
+    ],
+    "TestFirma": [
+      {
+        "konto": "401-2",
+        "opis": "Koszty podstawowe TestFirma"
+      },
+      {
+        "konto": "640-T",
+        "opis": "Rozliczenia miedzyokresowe TestFirma"
+      }
+    ]
+  },
+  "rmk_accounts_by_company": {
+    "IntegritasAD": [
+      {
+        "konto": "640",
+        "opis": "Rozliczenia miedzyokresowe IntegritasAD"
+      },
+      {
+        "konto": "640-1",
+        "opis": "RMK - amortyzacja 1 IntegritasAD"
+      }
+    ],
+    "TestFirma": [
+      {
+        "konto": "640-T",
+        "opis": "Rozliczenia miedzyokresowe TestFirma"
+      },
+      {
+        "konto": "640-T1",
+        "opis": "RMK - amortyzacja 1 TestFirma"
+      }
+    ]
+  },
   "rmk_items": [
     {
       "id": 1,
-      "opis": "Ubezpieczenie biurowe – polisa roczna",
-      "data_start": "2024-01-01",
-      "liczba_mies": 12,
-      "kwota": 12000.0,
-      "firma": "Firma Testowa Ąć",
-      "kategoria": "Ubezpieczenia życiowe",
-      "konto_kosztowe": "401-1",
-      "konto_rmk": "640",
-      "numer_faktury": "FV/2024/001/Ąć",
-      "kontrahent": "Ubezpieczenia PZU Spółka",
-      "data_koniec": "2024-12-31",
-      "harmonogram_generated": false,
-      "harmonogram": []
+      "opis": "Test pozycja",
+      "data_start": "2025-01-15",
+      "liczba_mies": 3,
+      "kwota": 300.0,
+      "firma": "Firma A",
+      "kategoria": "KatA",
+      "konto_kosztowe": "400",
+      "konto_rmk": "700",
+      "numer_faktury": "FV/1",
+      "kontrahent": "Kontrahent X",
+      "uwagi": "",
+      "data_koniec": null,
+      "harmonogram_generated": true,
+      "harmonogram": [
+        {
+          "miesiac": "2025-01",
+          "kwota": 48.11,
+          "konto": "400",
+          "konto_rmk": "700",
+          "kategoria": "KatA"
+        },
+        {
+          "miesiac": "2025-02",
+          "kwota": 79.25,
+          "konto": "400",
+          "konto_rmk": "700",
+          "kategoria": "KatA"
+        },
+        {
+          "miesiac": "2025-03",
+          "kwota": 87.74,
+          "konto": "400",
+          "konto_rmk": "700",
+          "kategoria": "KatA"
+        },
+        {
+          "miesiac": "2025-04",
+          "kwota": 84.91,
+          "konto": "400",
+          "konto_rmk": "700",
+          "kategoria": "KatA"
+        }
+      ]
     }
   ],
   "view_state": {}
