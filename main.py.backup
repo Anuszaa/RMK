@@ -30,8 +30,6 @@ from dataclasses import dataclass
 from typing import List, Optional, Dict
 import sys, os, json
 import re
-# Debug flag for button invocation tracing. Set RMK_DEBUG_BUTTONS=1 in env to enable.
-DEBUG_BUTTONS = os.environ.get('RMK_DEBUG_BUTTONS', '0') == '1'
 
 # Poprawka dla PyInstaller - okreslenie base path
 def resource_path(relative_path):
@@ -47,22 +45,6 @@ def create_btn(owner, parent, **kwargs):
     """Create a button using owner's _btn if available (owner may be RMKApp or a dialog).
     Falls back to ttk.Button and maps bootstyle -> style if needed.
     """
-    # Optionally wrap command for debugging button invocations
-    if DEBUG_BUTTONS and 'command' in kwargs and callable(kwargs.get('command')):
-        orig_cmd = kwargs['command']
-        btn_text = kwargs.get('text', '<no-text>')
-        def _dbg_cmd(*a, **k):
-            try:
-                print(f"DEBUG_BTN: '{btn_text}' invoked -> {getattr(orig_cmd, '__name__', repr(orig_cmd))}")
-            except Exception:
-                print(f"DEBUG_BTN: '{btn_text}' invoked")
-            try:
-                return orig_cmd(*a, **k)
-            except Exception as e:
-                print(f"DEBUG_BTN: error executing command for '{btn_text}': {e}")
-                raise
-        kwargs['command'] = _dbg_cmd
-
     # If owner itself provides _btn (RMKApp methods), use it
     try:
         if hasattr(owner, '_btn') and callable(getattr(owner, '_btn')):
@@ -501,9 +483,12 @@ def configure_treeview_borders(root):
                 print(f"Dodaje RZECZYWISTE obramowania dla tabeli")
                 
                 try:
-                    # 1. Konfiguruj sama tabele - tylko obsługiwane opcje ttk.Treeview
+                    # 1. Konfiguruj sama tabele
                     widget.configure(
-                        selectmode='extended'
+                        selectmode='extended',
+                        background='gray',
+                        foreground='black', 
+                        fieldbackground='gray'
                     )
                     
                     # 2. Alternujace kolory wierszy
@@ -709,26 +694,6 @@ class RMKItem:
     data_koniec: Optional[date] = None
     harmonogram_generated: bool = False
     harmonogram: Optional[List[Dict]] = None
-    
-    def __init__(self, id: int, opis: str, data_start: date, liczba_mies: int, kwota: float, 
-                 firma: str, kategoria: str, konto_kosztowe: str, konto_rmk: str, 
-                 numer_faktury: str, kontrahent: str, uwagi: str = "", data_koniec: Optional[date] = None,
-                 harmonogram_generated: bool = False, harmonogram: Optional[List[Dict]] = None):
-        self.id = id
-        self.opis = opis
-        self.data_start = data_start
-        self.liczba_mies = liczba_mies
-        self.kwota = kwota
-        self.firma = firma
-        self.kategoria = kategoria
-        self.konto_kosztowe = konto_kosztowe
-        self.konto_rmk = konto_rmk
-        self.numer_faktury = numer_faktury
-        self.kontrahent = kontrahent
-        self.uwagi = uwagi
-        self.data_koniec = data_koniec
-        self.harmonogram_generated = harmonogram_generated
-        self.harmonogram = harmonogram if harmonogram is not None else []
     def to_dict(self):
         return {
             'id': self.id,
@@ -1050,37 +1015,15 @@ class LoginDialog(tk.Toplevel):
 # Dialogy pomocnicze (ItemDialog, AccountDialog, RMKAccountDialog, UserDialog, CompanyDialog)
 class ItemDialog(tk.Toplevel):
     def __init__(self, master, item: Optional[RMKItem] = None):
-        print(f"DEBUG: ItemDialog.__init__ start (master={master}, item_id={getattr(item, 'id', None)})")
-        
+        super().__init__(master)
+        self.title("Pozycja RMK" if not item else f"Edytuj RMK #{item.id}")
+        self.transient(master)
         try:
-            super().__init__(master)
-            self.title("Pozycja RMK" if not item else f"Edytuj RMK #{item.id}")
-            self.transient(master)
-            
-            # Bezpieczne ustawienie grab_set
-            try:
-                self.grab_set()
-            except Exception as e:
-                print(f"DEBUG: ItemDialog grab_set failed: {e}")
-            
-            self.resizable(False, False)
-            self.item = item
-            self.result = None  # Inicjalizuj result
-            
-            # Budowanie interfejsu w try-catch
-            self._build_interface(master)
-            
-            print(f"DEBUG: ItemDialog.__init__ completed successfully")
-            
-        except Exception as e:
-            print(f"ERROR: ItemDialog.__init__ failed: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            self.result = None
-            raise
-    
-    def _build_interface(self, master):
-        """Buduje interfejs dialogu"""
+            self.grab_set()
+        except Exception:
+            pass
+        self.resizable(False, False)
+        self.item = item
 
         frame = ttk.Frame(self, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
@@ -1167,11 +1110,7 @@ class ItemDialog(tk.Toplevel):
             self.ent_data.insert(0, item.data_start.isoformat())
             self.ent_data_koniec.insert(0, item.data_koniec.isoformat() if item.data_koniec else "")
             self.ent_mies.insert(0, str(item.liczba_mies))
-            # Show kwota using Polish formatting (spaces thousands, comma decimal)
-            try:
-                self.ent_kwota.insert(0, thousand_sep(item.kwota))
-            except Exception:
-                self.ent_kwota.insert(0, str(item.kwota))
+            self.ent_kwota.insert(0, str(item.kwota))
             self.cbx_kat.set(item.kategoria)
             self.cbx_konto.set(item.konto_kosztowe)
             self.cbx_konto_rmk.set(item.konto_rmk)
@@ -1204,15 +1143,13 @@ class ItemDialog(tk.Toplevel):
                         self.cbx_konto_rmk.set(rmk_accounts[0]['konto'])
             
             self.ent_mies.insert(0, "12")
-            # default zero with Polish decimal comma
-            self.ent_kwota.insert(0, "0,00")
+            self.ent_kwota.insert(0, "0.00")
 
         btnf = ttk.Frame(frame)
         btnf.grid(row=len(labels_with_company), column=0, columnspan=2, pady=(8, 0))
         ttk.Button(btnf, text="Anuluj", command=self.cancel).pack(side=tk.RIGHT, padx=6)
         create_btn(self, btnf, text="Zapisz", command=self.ok, bootstyle='warning').pack(side=tk.RIGHT, padx=6)
         self.result = None
-        print(f"DEBUG: ItemDialog.__init__ before wait_window (item_id={getattr(item, 'id', None)})")
         self.wait_window(self)
 
     def ok(self):
@@ -1244,10 +1181,7 @@ class ItemDialog(tk.Toplevel):
                 diff = data_koniec - data_start
                 liczba_mies = max(1, (diff.days // 30) + 1)  # Aproximacja miesiecy
             
-            # Normalize kwota: remove thousand separators (spaces) and convert comma->dot for float()
-            kw_raw = self.ent_kwota.get().strip()
-            kw_norm = str(kw_raw).replace(' ', '').replace(',', '.')
-            kwota = float(kw_norm)
+            kwota = float(self.ent_kwota.get().strip())
             kategoria = self.cbx_kat.get().strip()
             konto_kosztowe = self.cbx_konto.get().strip()
             konto_rmk = self.cbx_konto_rmk.get().strip()
@@ -1418,13 +1352,7 @@ class UserDialog(tk.Toplevel):
 class CompanyDialog(simpledialog.Dialog):
     def __init__(self, master, title="Firma", name: str = ""):
         self.init_name = name
-        try:
-            super().__init__(master, title=title)
-        except Exception as e:
-            print(f"ERROR: CompanyDialog init failed: {e}")
-            # Fallback - utwórz pusty result
-            self.result = None
-            raise
+        super().__init__(master, title=title)
     def body(self, master):
         ttk.Label(master, text="Nazwa firmy:").grid(row=0, column=0, padx=6, pady=6)
         self.ent = ttk.Entry(master, width=40)
@@ -1436,445 +1364,8 @@ class CompanyDialog(simpledialog.Dialog):
 
 class RMKApp(tk.Tk):
     def __init__(self):
-        # Wrap entire initialization in a top-level try so no exception
-        # propagates out of __init__ during tests/CI. On any unexpected
-        # error we fall back to the headless minimal mode.
-        try:
-            # Try to initialize the Tk root; if this fails (headless/CI),
-            # fall back to a minimal headless mode where GUI widgets are
-            # replaced with lightweight dummies so logic and tests can run.
-            try:
-                # Ulepszone wykrywanie środowiska GUI dla Codespaces
-                is_codespace = 'codespace' in os.environ.get('USER', '').lower()
-                if is_codespace:
-                    print("DEBUG: Wykryto GitHub Codespaces - próba inicjalizacji GUI...")
-                
-                super().__init__()
-                self._headless = False
-                print(f"DEBUG: GUI zainicjalizowane pomyślnie (headless={self._headless})")
-            except Exception as e:
-                # Headless fallback
-                print(f"DEBUG: Błąd inicjalizacji GUI: {e} - przechodzę w tryb headless")
-                self._headless = True
-                # Minimal data init and return early (no GUI creation)
-                self._init_data()
-                try:
-                    self._load_state()
-                except Exception:
-                    pass
-                # Lightweight dummy widgets used in tests
-                class _DummyCombo:
-                    def __init__(self):
-                        self.values = []
-                        self._value = ''
-                    def __setitem__(self, k, v):
-                        if k == 'values':
-                            self.values = v
-                    def configure(self, **kwargs):
-                        if 'values' in kwargs:
-                            self.values = kwargs['values']
-                    def current(self, i):
-                        pass
-                    def get(self):
-                        return self._value
-                    def set(self, value):
-                        self._value = value
-                class _DummyTree:
-                    def __init__(self):
-                        self._selection = []
-                        self._focus = "1"
-                        self._columns = []
-                    def delete(self, *args, **kwargs):
-                        pass
-                    def insert(self, *args, **kwargs):
-                        pass
-                    def tag_configure(self, *args, **kwargs):
-                        pass
-                    def item(self, iid=None, key=None, **kwargs):
-                        # Return fake data for headless testing
-                        if key == 'values' and iid == "1":
-                            return ('1', 'Test pozycja', '2025-01-15', '', '3', '300,00', 'KatA', '400', '700', 'FV/1', 'Kontrahent X', '✗', '')
-                        return {}
-                    def selection(self):
-                        return self._selection
-                    def focus(self):
-                        return self._focus
-                    def after(self, *args, **kwargs):
-                        pass
-                    def event_generate(self, *args, **kwargs):
-                        pass
-                    def get_children(self):
-                        return []
-                    def heading(self, col, **kwargs):
-                        pass
-                    def column(self, col, **kwargs):
-                        pass
-                    def __setitem__(self, key, value):
-                        # Support tree["columns"] = value assignment
-                        if key == "columns":
-                            self._columns = value
-                    def __getitem__(self, key):
-                        if key == "columns":
-                            return self._columns
-                        return None
-                self.harmo_item_cb = _DummyCombo()
-                self.harmo_tree = _DummyTree()
-                self.tree = _DummyTree()  # Dodaj brakujacy self.tree dla trybu headless
-                # minimal placeholders for other attributes used in tests
-                self.sort_column = None
-                self.sort_reverse = False
-                # Safe no-op methods for headless/test environments
-                try:
-                    self.withdraw = lambda: None
-                    self.deiconify = lambda: None
-                    self.destroy = lambda: None
-                except Exception:
-                    pass
-                return
-            
-            # Poprawka dla Windows - ustaw kodowanie konsoli
-            if os.name == 'nt':
-                try:
-                    import locale
-                    locale.setlocale(locale.LC_ALL, '')
-                except Exception:
-                    pass
-
-            # Konfiguruj style TTK przed utworzeniem interfejsu
-            try:
-                configure_ttk_styles(self)
-            except Exception:
-                # fallback to headless mode if style configuration fails
-                try:
-                    self.destroy()
-                except Exception:
-                    pass
-                self._headless = True
-                self._init_data()
-                try:
-                    self._load_state()
-                except Exception:
-                    pass
-                # lightweight dummies
-                class _DummyCombo:
-                    def __init__(self):
-                        self.values = []
-                    def __setitem__(self, k, v):
-                        if k == 'values':
-                            self.values = v
-                    def configure(self, **kwargs):
-                        if 'values' in kwargs:
-                            self.values = kwargs['values']
-                    def current(self, i):
-                        pass
-                    def get(self):
-                        return ''
-                class _DummyTree:
-                    def delete(self, *args, **kwargs):
-                        pass
-                    def insert(self, *args, **kwargs):
-                        pass
-                    def tag_configure(self, *args, **kwargs):
-                        pass
-                    def item(self, *args, **kwargs):
-                        pass
-                    def after(self, *args, **kwargs):
-                        pass
-                    def event_generate(self, *args, **kwargs):
-                        pass
-                self.harmo_item_cb = _DummyCombo()
-                self.harmo_tree = _DummyTree()
-                self.sort_column = None
-                self.sort_reverse = False
-                # ensure destroy is a safe no-op in headless mode
-                try:
-                    self.withdraw = lambda: None
-                    self.deiconify = lambda: None
-                    self.destroy = lambda: None
-                except Exception:
-                    pass
-                return
-
-            try:
-                self.withdraw()
-                self.title(APP_NAME)
-                self.geometry("1200x760")
-                self.configure(bg=BRAND_COLOR_LIGHT)  # Uzywaj lekko szarego tla
-                
-                # Inicjalizacja zmiennych sortowania
-                self.sort_column = None
-                self.sort_reverse = False
-                
-                # Ustaw ikone okna jesli istnieje
-                try:
-                    icon_path = resource_path('logo/RMK insG.png')
-                    if os.path.exists(icon_path):
-                        # Konwertuj PNG na PhotoImage dla Tkinter
-                        icon_img = tk.PhotoImage(file=icon_path)
-                        self.iconphoto(False, icon_img)
-                except Exception:
-                    pass
-
-                self._setup_style()
-                self._init_data()
-                # load persisted state (if any)
-                self._load_state()
-
-                print(">>> Debug main - tworze splash screen")
-                try:
-                    Splash(self)
-                    print(">>> Debug main - czekam na zamkniecie splash")
-                    self.wait_window(self.winfo_children()[-1])
-                    print(">>> Debug main - splash zamkniety")
-                except Exception:
-                    # fallback to headless on splash failure
-                    try:
-                        self.destroy()
-                    except Exception:
-                        pass
-                    self._headless = True
-                    self._init_data()
-                    try:
-                        self._load_state()
-                    except Exception:
-                        pass
-                    # dummy widgets
-                    class _DummyCombo:
-                        def __init__(self):
-                            self.values = []
-                        def __setitem__(self, k, v):
-                            if k == 'values':
-                                self.values = v
-                        def configure(self, **kwargs):
-                            if 'values' in kwargs:
-                                self.values = kwargs['values']
-                        def current(self, i):
-                            pass
-                        def get(self):
-                            return ''
-                    class _DummyTree:
-                        def delete(self, *args, **kwargs):
-                            pass
-                        def insert(self, *args, **kwargs):
-                            pass
-                        def tag_configure(self, *args, **kwargs):
-                            pass
-                        def item(self, *args, **kwargs):
-                            pass
-                        def after(self, *args, **kwargs):
-                            pass
-                        def event_generate(self, *args, **kwargs):
-                            pass
-                    self.harmo_item_cb = _DummyCombo()
-                    self.harmo_tree = _DummyTree()
-                    self.sort_column = None
-                    self.sort_reverse = False
-                    # ensure basic window methods are safe no-ops in headless mode
-                    try:
-                        self.withdraw = lambda: None
-                        self.deiconify = lambda: None
-                        self.destroy = lambda: None
-                    except Exception:
-                        pass
-                    return
-
-                # Keep the main window hidden until successful login
-                max_attempts = 3
-                attempt = 0
-                logged_in = False
-                # create one dialog and update it dynamically to avoid flicker
-                attempts_left = max_attempts - attempt
-                login = LoginDialog(self, attempts_left=attempts_left)
-                # keep dialog visible and listen to its action_var
-                while attempt < max_attempts and not logged_in:
-                    # wait until dialog signals an action (ok/cancel)
-                    # use variable trace-like polling since wait_variable on external var isn't safe across Toplevels
-                    self.wait_variable(login.action_var)
-                    action = login.action_var.get()
-                    if action == 'cancel':
-                        try:
-                            login.destroy()
-                        except Exception:
-                            pass
-                        try:
-                            self.destroy()
-                        except Exception:
-                            pass
-                        sys.exit(0)
-                    elif action == 'ok':
-                        username = login.submitted_username
-                        password = login.submitted_password
-                        if username in self.users and self.users[username]['password'] == password:
-                            logged_in = True
-                            self.current_user = username
-                            self.current_user_admin = self.users[username].get('is_admin', False)
-                            try:
-                                login.destroy()
-                            except Exception:
-                                pass
-                            # set current company from login dialog (if provided)
-                            try:
-                                selc = getattr(login, 'selected_company', None)
-                                if selc:
-                                    self.current_company = selc
-                                else:
-                                    self.current_company = self.companies[0] if self.companies else ''
-                            except Exception:
-                                self.current_company = self.companies[0] if self.companies else ''
-                            break
-                        else:
-                            attempt += 1
-                            attempts_left = max_attempts - attempt
-                            messagebox.showerror(APP_NAME, "Nieprawidlowy login lub haslo.")
-                            # update attempts label on the dialog
-                            try:
-                                login.update_attempts(attempts_left)
-                            except Exception:
-                                pass
-                            # reset action_var to wait for next submit
-                            login.action_var.set('')
-                            # continue loop and wait for next user submission
-
-                if not logged_in:
-                    # exceeded attempts - exit
-                    try:
-                        self.destroy()
-                    except Exception:
-                        pass
-                    sys.exit(0)
-
-                # successful login -> show main UI
-                self.deiconify()
-                # set window title to include selected company (if any)
-                try:
-                    comp = getattr(self, 'current_company', '')
-                    if comp:
-                        self.title(f"{APP_NAME} - {comp}")
-                except Exception:
-                    pass
-                try:
-                    self._build_gui()
-                except Exception:
-                    tb = traceback.format_exc()
-                    try:
-                        with open('/workspaces/RMK/error.log', 'a', encoding='utf-8') as f:
-                            f.write(f"\n[{datetime.now().isoformat()}] Exception in _build_gui():\n")
-                            f.write(tb)
-                            f.write("\n")
-                    except Exception:
-                        pass
-                    try:
-                        messagebox.showerror(APP_NAME, "Blad podczas budowy interfejsu. Sprawdz /workspaces/RMK/error.log dla szczegolow.")
-                    except Exception:
-                        pass
-                    sys.exit(1)
-            except Exception:
-                # any error during UI setup -> fallback to headless mode
-                try:
-                    self.destroy()
-                except Exception:
-                    pass
-                self._headless = True
-                self._init_data()
-                try:
-                    self._load_state()
-                except Exception:
-                    pass
-                # dummy widgets
-                class _DummyCombo:
-                    def __init__(self):
-                        self.values = []
-                    def __setitem__(self, k, v):
-                        if k == 'values':
-                            self.values = v
-                    def configure(self, **kwargs):
-                        if 'values' in kwargs:
-                            self.values = kwargs['values']
-                    def current(self, i):
-                        pass
-                    def get(self):
-                        return ''
-                class _DummyTree:
-                    def delete(self, *args, **kwargs):
-                        pass
-                    def insert(self, *args, **kwargs):
-                        pass
-                    def tag_configure(self, *args, **kwargs):
-                        pass
-                    def item(self, *args, **kwargs):
-                        pass
-                    def after(self, *args, **kwargs):
-                        pass
-                    def event_generate(self, *args, **kwargs):
-                        pass
-                self.harmo_item_cb = _DummyCombo()
-                self.harmo_tree = _DummyTree()
-                self.sort_column = None
-                self.sort_reverse = False
-                try:
-                    self.destroy = lambda: None
-                except Exception:
-                    pass
-                return
-        except Exception as e:
-            # As a last-resort catch-all ensure __init__ never raises during tests.
-            print(f"⚠️ Nieoczekiwany blad w RMKApp.__init__: {e}")
-            try:
-                import traceback as _tb
-                print(_tb.format_exc())
-            except Exception:
-                pass
-            # headless fallback
-            self._headless = True
-            try:
-                self._init_data()
-            except Exception:
-                pass
-            try:
-                self._load_state()
-            except Exception:
-                pass
-            class _DummyCombo:
-                def __init__(self):
-                    self.values = []
-                def __setitem__(self, k, v):
-                    if k == 'values':
-                        self.values = v
-                def configure(self, **kwargs):
-                    if 'values' in kwargs:
-                        self.values = kwargs['values']
-                def current(self, i):
-                    pass
-                def get(self):
-                    return ''
-            class _DummyTree:
-                def delete(self, *args, **kwargs):
-                    pass
-                def insert(self, *args, **kwargs):
-                    pass
-                def tag_configure(self, *args, **kwargs):
-                    pass
-                def item(self, *args, **kwargs):
-                    pass
-                def after(self, *args, **kwargs):
-                    pass
-                def event_generate(self, *args, **kwargs):
-                    pass
-            try:
-                self.harmo_item_cb = _DummyCombo()
-                self.harmo_tree = _DummyTree()
-            except Exception:
-                pass
-            self.sort_column = None
-            self.sort_reverse = False
-            try:
-                self.withdraw = lambda: None
-                self.deiconify = lambda: None
-                self.destroy = lambda: None
-            except Exception:
-                pass
-            return
-
+        super().__init__()
+        
         # Poprawka dla Windows - ustaw kodowanie konsoli
         if os.name == 'nt':
             try:
@@ -1882,284 +1373,131 @@ class RMKApp(tk.Tk):
                 locale.setlocale(locale.LC_ALL, '')
             except Exception:
                 pass
-
+        
         # Konfiguruj style TTK przed utworzeniem interfejsu
+        configure_ttk_styles(self)
+        
+        self.withdraw()
+        self.title(APP_NAME)
+        self.geometry("1200x760")
+        self.configure(bg=BRAND_COLOR_LIGHT)  # Uzywaj lekko szarego tla
+        
+        # Inicjalizacja zmiennych sortowania
+        self.sort_column = None
+        self.sort_reverse = False
+        
+        # Ustaw ikone okna jesli istnieje
         try:
-            configure_ttk_styles(self)
+            icon_path = resource_path('logo/RMK insG.png')
+            if os.path.exists(icon_path):
+                # Konwertuj PNG na PhotoImage dla Tkinter
+                icon_img = tk.PhotoImage(file=icon_path)
+                self.iconphoto(False, icon_img)
         except Exception:
-            # fallback to headless mode if style configuration fails
-            try:
-                self.destroy()
-            except Exception:
-                pass
-            self._headless = True
-            self._init_data()
-            try:
-                self._load_state()
-            except Exception:
-                pass
-            # lightweight dummies
-            class _DummyCombo:
-                def __init__(self):
-                    self.values = []
-                def __setitem__(self, k, v):
-                    if k == 'values':
-                        self.values = v
-                def configure(self, **kwargs):
-                    if 'values' in kwargs:
-                        self.values = kwargs['values']
-                def current(self, i):
-                    pass
-                def get(self):
-                    return ''
-            class _DummyTree:
-                def delete(self, *args, **kwargs):
-                    pass
-                def insert(self, *args, **kwargs):
-                    pass
-                def tag_configure(self, *args, **kwargs):
-                    pass
-                def item(self, *args, **kwargs):
-                    pass
-                def after(self, *args, **kwargs):
-                    pass
-                def event_generate(self, *args, **kwargs):
-                    pass
-            self.harmo_item_cb = _DummyCombo()
-            self.harmo_tree = _DummyTree()
-            self.sort_column = None
-            self.sort_reverse = False
-            # ensure basic window methods are safe no-ops in headless mode
-            try:
-                self.withdraw = lambda: None
-                self.deiconify = lambda: None
-                self.destroy = lambda: None
-            except Exception:
-                pass
-            return
+            pass  # Ignoruj bledy z ikona
+        
+        self._setup_style()
+        self._init_data()
+        # load persisted state (if any)
+        self._load_state()
 
-        try:
-            self.withdraw()
-            self.title(APP_NAME)
-            self.geometry("1200x760")
-            self.configure(bg=BRAND_COLOR_LIGHT)  # Uzywaj lekko szarego tla
-            
-            # Inicjalizacja zmiennych sortowania
-            self.sort_column = None
-            self.sort_reverse = False
-            
-            # Ustaw ikone okna jesli istnieje
-            try:
-                icon_path = resource_path('logo/RMK insG.png')
-                if os.path.exists(icon_path):
-                    # Konwertuj PNG na PhotoImage dla Tkinter
-                    icon_img = tk.PhotoImage(file=icon_path)
-                    self.iconphoto(False, icon_img)
-            except Exception:
-                pass  # Ignoruj bledy z ikona
-            
-            self._setup_style()
-            self._init_data()
-            # load persisted state (if any)
-            self._load_state()
+        print(">>> Debug main - tworze splash screen")
+        Splash(self)
+        print(">>> Debug main - czekam na zamkniecie splash")
+        self.wait_window(self.winfo_children()[-1])
+        print(">>> Debug main - splash zamkniety")
 
-            print(">>> Debug main - tworze splash screen")
-            try:
-                Splash(self)
-                print(">>> Debug main - czekam na zamkniecie splash")
-                self.wait_window(self.winfo_children()[-1])
-                print(">>> Debug main - splash zamkniety")
-            except Exception:
-                # fallback to headless on splash failure
+        # Keep the main window hidden until successful login
+        max_attempts = 3
+        attempt = 0
+        logged_in = False
+        # create one dialog and update it dynamically to avoid flicker
+        attempts_left = max_attempts - attempt
+        login = LoginDialog(self, attempts_left=attempts_left)
+        # keep dialog visible and listen to its action_var
+        while attempt < max_attempts and not logged_in:
+            # wait until dialog signals an action (ok/cancel)
+            # use variable trace-like polling since wait_variable on external var isn't safe across Toplevels
+            self.wait_variable(login.action_var)
+            action = login.action_var.get()
+            if action == 'cancel':
                 try:
-                    self.destroy()
+                    login.destroy()
                 except Exception:
                     pass
-                self._headless = True
-                self._init_data()
-                try:
-                    self._load_state()
-                except Exception:
-                    pass
-                # dummy widgets
-                class _DummyCombo:
-                    def __init__(self):
-                        self.values = []
-                    def __setitem__(self, k, v):
-                        if k == 'values':
-                            self.values = v
-                    def configure(self, **kwargs):
-                        if 'values' in kwargs:
-                            self.values = kwargs['values']
-                    def current(self, i):
-                        pass
-                    def get(self):
-                        return ''
-                class _DummyTree:
-                    def delete(self, *args, **kwargs):
-                        pass
-                    def insert(self, *args, **kwargs):
-                        pass
-                    def tag_configure(self, *args, **kwargs):
-                        pass
-                    def item(self, *args, **kwargs):
-                        pass
-                    def after(self, *args, **kwargs):
-                        pass
-                    def event_generate(self, *args, **kwargs):
-                        pass
-                self.harmo_item_cb = _DummyCombo()
-                self.harmo_tree = _DummyTree()
-                self.sort_column = None
-                self.sort_reverse = False
-                # ensure basic window methods are safe no-ops in headless mode
-                try:
-                    self.withdraw = lambda: None
-                    self.deiconify = lambda: None
-                    self.destroy = lambda: None
-                except Exception:
-                    pass
-                return
-
-            # Keep the main window hidden until successful login
-            max_attempts = 3
-            attempt = 0
-            logged_in = False
-            # create one dialog and update it dynamically to avoid flicker
-            attempts_left = max_attempts - attempt
-            login = LoginDialog(self, attempts_left=attempts_left)
-            # keep dialog visible and listen to its action_var
-            while attempt < max_attempts and not logged_in:
-                # wait until dialog signals an action (ok/cancel)
-                # use variable trace-like polling since wait_variable on external var isn't safe across Toplevels
-                self.wait_variable(login.action_var)
-                action = login.action_var.get()
-                if action == 'cancel':
-                    try:
-                        login.destroy()
-                    except Exception:
-                        pass
-                    try:
-                        self.destroy()
-                    except Exception:
-                        pass
-                    sys.exit(0)
-                elif action == 'ok':
-                    username = login.submitted_username
-                    password = login.submitted_password
-                    if username in self.users and self.users[username]['password'] == password:
-                        logged_in = True
-                        self.current_user = username
-                        self.current_user_admin = self.users[username].get('is_admin', False)
-                        try:
-                            login.destroy()
-                        except Exception:
-                            pass
-                        # set current company from login dialog (if provided)
-                        try:
-                            selc = getattr(login, 'selected_company', None)
-                            if selc:
-                                self.current_company = selc
-                            else:
-                                self.current_company = self.companies[0] if self.companies else ''
-                        except Exception:
-                            self.current_company = self.companies[0] if self.companies else ''
-                        break
-                    else:
-                        attempt += 1
-                        attempts_left = max_attempts - attempt
-                        messagebox.showerror(APP_NAME, "Nieprawidlowy login lub haslo.")
-                        # update attempts label on the dialog
-                        try:
-                            login.update_attempts(attempts_left)
-                        except Exception:
-                            pass
-                        # reset action_var to wait for next submit
-                        login.action_var.set('')
-                        # continue loop and wait for next user submission
-
-            if not logged_in:
-                # exceeded attempts - exit
                 try:
                     self.destroy()
                 except Exception:
                     pass
                 sys.exit(0)
+            elif action == 'ok':
+                username = login.submitted_username
+                password = login.submitted_password
+                if username in self.users and self.users[username]['password'] == password:
+                    logged_in = True
+                    self.current_user = username
+                    self.current_user_admin = self.users[username].get('is_admin', False)
+                    try:
+                        login.destroy()
+                    except Exception:
+                        pass
+                    # set current company from login dialog (if provided)
+                    try:
+                        selc = getattr(login, 'selected_company', None)
+                        if selc:
+                            self.current_company = selc
+                        else:
+                            self.current_company = self.companies[0] if self.companies else ''
+                    except Exception:
+                        self.current_company = self.companies[0] if self.companies else ''
+                    break
+                else:
+                    attempt += 1
+                    attempts_left = max_attempts - attempt
+                    messagebox.showerror(APP_NAME, "Nieprawidlowy login lub haslo.")
+                    # update attempts label on the dialog
+                    try:
+                        login.update_attempts(attempts_left)
+                    except Exception:
+                        pass
+                    # reset action_var to wait for next submit
+                    login.action_var.set('')
+                    # continue loop and wait for next user submission
 
-            # successful login -> show main UI
-            self.deiconify()
-            # set window title to include selected company (if any)
-            try:
-                comp = getattr(self, 'current_company', '')
-                if comp:
-                    self.title(f"{APP_NAME} - {comp}")
-            except Exception:
-                pass
-            try:
-                self._build_gui()
-            except Exception:
-                tb = traceback.format_exc()
-                try:
-                    with open('/workspaces/RMK/error.log', 'a', encoding='utf-8') as f:
-                        f.write(f"\n[{datetime.now().isoformat()}] Exception in _build_gui():\n")
-                        f.write(tb)
-                        f.write("\n")
-                except Exception:
-                    pass
-                try:
-                    messagebox.showerror(APP_NAME, "Blad podczas budowy interfejsu. Sprawdz /workspaces/RMK/error.log dla szczegolow.")
-                except Exception:
-                    pass
-                sys.exit(1)
-            self.update_status(f"Zalogowano: {self.current_user}{' (Admin)' if self.current_user_admin else ''}")
-        except Exception:
-            # any error during UI setup -> fallback to headless mode
+        if not logged_in:
+            # exceeded attempts - exit
             try:
                 self.destroy()
             except Exception:
                 pass
-            self._headless = True
-            self._init_data()
+            sys.exit(0)
+
+        # successful login -> show main UI
+        self.deiconify()
+        # set window title to include selected company (if any)
+        try:
+            comp = getattr(self, 'current_company', '')
+            if comp:
+                self.title(f"{APP_NAME} - {comp}")
+        except Exception:
+            pass
+        try:
+            self._build_gui()
+        except Exception:
+            tb = traceback.format_exc()
             try:
-                self._load_state()
+                with open('/workspaces/RMK/error.log', 'a', encoding='utf-8') as f:
+                    f.write(f"\n[{datetime.now().isoformat()}] Exception in _build_gui():\n")
+                    f.write(tb)
+                    f.write("\n")
             except Exception:
                 pass
-            # dummy widgets
-            class _DummyCombo:
-                def __init__(self):
-                    self.values = []
-                def __setitem__(self, k, v):
-                    if k == 'values':
-                        self.values = v
-                def configure(self, **kwargs):
-                    if 'values' in kwargs:
-                        self.values = kwargs['values']
-                def current(self, i):
-                    pass
-                def get(self):
-                    return ''
-            class _DummyTree:
-                def delete(self, *args, **kwargs):
-                    pass
-                def insert(self, *args, **kwargs):
-                    pass
-                def tag_configure(self, *args, **kwargs):
-                    pass
-                def item(self, *args, **kwargs):
-                    pass
-                def after(self, *args, **kwargs):
-                    pass
-                def event_generate(self, *args, **kwargs):
-                    pass
-            self.harmo_item_cb = _DummyCombo()
-            self.harmo_tree = _DummyTree()
-            self.sort_column = None
-            self.sort_reverse = False
             try:
-                self.destroy = lambda: None
+                messagebox.showerror(APP_NAME, "Blad podczas budowy interfejsu. Sprawdz /workspaces/RMK/error.log dla szczegolow.")
             except Exception:
                 pass
-            return
+            sys.exit(1)
+        self.update_status(f"Zalogowano: {self.current_user}{' (Admin)' if self.current_user_admin else ''}")
 
     def _init_data(self):
         self.users = {
@@ -2197,18 +1535,6 @@ class RMKApp(tk.Tk):
         # Zachowaj stare formaty dla kompatybilnosci wstecznej
         self.accounts = []
         self.rmk_accounts = []
-
-    def destroy(self):
-        """Robust destroy: swallow Tk errors in headless/partial-init scenarios."""
-        try:
-            super().destroy()
-        except Exception:
-            try:
-                # best-effort fallback
-                if getattr(self, 'tk', None):
-                    self.tk = None
-            except Exception:
-                pass
 
     def get_accounts_for_company(self, company: str) -> List[Dict]:
         """Zwraca konta kosztowe dla konkretnej firmy"""
@@ -2295,44 +1621,7 @@ class RMKApp(tk.Tk):
 
     def edit_harmonogram(self):
         """Edytuj wygenerowany harmonogram"""
-        # TYMCZASOWY FALLBACK - jeśli funkcja się zawiesza, po prostu ją wyłączamy
         try:
-            print("DEBUG: edit_harmonogram - START")
-            
-            # Sprawdz czy aplikacja może obsłużyć GUI dialogi
-            if getattr(self, '_headless', False):
-                print("DEBUG: edit_harmonogram - w trybie headless, pomijam")
-                return
-                
-            # Sprawdź środowisko GUI bezpiecznie - ulepszone wykrywanie dla Codespaces
-            is_codespace = 'codespace' in os.environ.get('USER', '').lower()
-            is_docker = os.path.exists('/.dockerenv')
-            has_display = bool(os.environ.get('DISPLAY', ''))
-            
-            # W Codespaces GUI może być dostępne nawet bez DISPLAY
-            if is_codespace:
-                print("DEBUG: edit_harmonogram - wykryto GitHub Codespaces, sprawdzam GUI...")
-                # Spróbuj test GUI w Codespaces
-                try:
-                    import tkinter as tk
-                    test_root = tk.Tk()
-                    test_root.withdraw()
-                    test_root.destroy()
-                    print("DEBUG: edit_harmonogram - GUI dostępne w Codespaces")
-                    gui_available = True
-                except Exception as e:
-                    print(f"DEBUG: edit_harmonogram - GUI niedostępne w Codespaces: {e}")
-                    gui_available = False
-            else:
-                # Standardowe wykrywanie dla innych środowisk
-                gui_available = has_display and not is_docker
-            
-            if not gui_available:
-                print("DEBUG: edit_harmonogram - środowisko bez GUI, pomijam")
-                return
-                
-            print("DEBUG: edit_harmonogram - GUI environment OK, kontynuuję")
-            
             # Sprawdz czy jest wybrana pozycja
             sel = None
             try:
@@ -2340,48 +1629,25 @@ class RMKApp(tk.Tk):
             except Exception:
                 pass
             if not sel:
-                # Headless guard - tylko dla messageBox
-                if not getattr(self, '_headless', False):
-                    messagebox.showinfo(APP_NAME, "Wybierz pozycje RMK z listy aby edytowac harmonogram.")
-                else:
-                    print("DEBUG: edit_harmonogram - brak selekcji w trybie headless")
+                messagebox.showinfo(APP_NAME, "Wybierz pozycje RMK z listy aby edytowac harmonogram.")
                 return
                 
             # Parsuj ID z selekcji jak '12: Opis...'
             try:
                 it_id = int(sel.split(':')[0])
             except Exception:
-                if not getattr(self, '_headless', False):
-                    messagebox.showerror(APP_NAME, "Nieprawidlowy format selekcji pozycji RMK.")
-                else:
-                    print("DEBUG: edit_harmonogram - nieprawidlowy format selekcji")
+                messagebox.showerror(APP_NAME, "Nieprawidlowy format selekcji pozycji RMK.")
                 return
                 
             # Znajdz pozycje
             item = next((x for x in self.rmk_items if x.id == it_id), None)
             if not item:
-                if not getattr(self, '_headless', False):
-                    messagebox.showerror(APP_NAME, "Nie znaleziono pozycji RMK.")
-                else:
-                    print("DEBUG: edit_harmonogram - nie znaleziono pozycji")
+                messagebox.showerror(APP_NAME, "Nie znaleziono pozycji RMK.")
                 return
                 
-            # Sprawdz czy harmonogram zostal wygenerowany i daj szczegoly diagnostyczne jesli nie
-            h_gen = getattr(item, 'harmonogram_generated', False)
-            h_raw = getattr(item, 'harmonogram', None)
-            h_type = type(h_raw).__name__ if h_raw is not None else 'None'
-            h_len = len(h_raw) if isinstance(h_raw, (list, tuple)) else 'N/A'
-            if not h_gen or not h_raw:
-                msg = (f"Najpierw wygeneruj harmonogram dla tej pozycji.\n\n"
-                       f"Diagnostyka:\n  harmonogram_generated={h_gen}\n  harmonogram_type={h_type}\n  harmonogram_len={h_len}")
-                if not getattr(self, '_headless', False):
-                    try:
-                        messagebox.showinfo(APP_NAME, msg)
-                    except Exception:
-                        # Jeśli messagebox nie działa, wypiszemy diagnostykę do konsoli
-                        print(f"INFO: {msg}")
-                else:
-                    print(f"DEBUG: edit_harmonogram - brak wygenerowanego harmonogramu: {msg}")
+            # Sprawdz czy harmonogram zostal wygenerowany
+            if not getattr(item, 'harmonogram_generated', False) or not getattr(item, 'harmonogram', None):
+                messagebox.showinfo(APP_NAME, "Najpierw wygeneruj harmonogram dla tej pozycji.")
                 return
                 
             # Otworz dialog edycji
@@ -2389,65 +1655,17 @@ class RMKApp(tk.Tk):
             
         except Exception as e:
             print(f"BLAD w edit_harmonogram: {e}")
-            if not getattr(self, '_headless', False):
-                messagebox.showerror(APP_NAME, f"Wystapil blad podczas otwierania edycji harmonogramu:\n{e}")
-            else:
-                print(f"DEBUG: edit_harmonogram exception: {e}")
+            messagebox.showerror(APP_NAME, f"Wystapil blad podczas otwierania edycji harmonogramu:\n{e}")
 
     def _open_harmonogram_edit_dialog(self, item):
         """Otworz dialog edycji harmonogramu"""
         try:
-            print(f"DEBUG: _open_harmonogram_edit_dialog start for item id={getattr(item, 'id', None)}")
-            
-            # Headless guard - nie twórz Toplevel dialogów w trybie headless
-            if getattr(self, '_headless', False):
-                print("DEBUG: _open_harmonogram_edit_dialog skipped in headless mode")
-                return
-                
-            # Określ parent dla Toplevel
-            parent = self
-            if hasattr(self, 'root') and self.root:
-                parent = self.root
-                print(f"DEBUG: Używam self.root jako parent: {type(parent)}")
-            elif hasattr(self, 'master') and self.master:
-                parent = self.master
-                print(f"DEBUG: Używam self.master jako parent: {type(parent)}")
-            else:
-                print(f"DEBUG: Używam self jako parent: {type(parent)}")
-                
-            # Utworz okno dialogowe - z try-catch na wypadek problemów z tkinter
-            try:
-                print(f"DEBUG: Próba utworzenia Toplevel, self={type(self)}, self winfo_exists={getattr(self, 'winfo_exists', lambda: 'N/A')()}")
-                dialog = tk.Toplevel(parent)
-            except Exception as e:
-                print(f"DEBUG: Nie można utworzyć Toplevel dialog: {e}")
-                import traceback
-                print(f"DEBUG: Traceback: {traceback.format_exc()}")
-                if not getattr(self, '_headless', False):
-                    messagebox.showerror(APP_NAME, f"Nie udało się otworzyć okna edycji: {e}")
-                return
+            # Utworz okno dialogowe
+            dialog = tk.Toplevel(self.root)
             dialog.title(f"Edycja harmonogramu - {item.opis}")
             dialog.geometry("800x600")
             dialog.resizable(True, True)
-            dialog.configure(bg=BRAND_COLOR_LIGHT)  # Jasniejsze tlo zamiast ciemnoniebieskiego
-            try:
-                dialog.lift()
-            except Exception:
-                pass
-            try:
-                dialog.focus_force()
-            except Exception:
-                pass
-            # Upewnij się, że okno jest widoczne
-            try:
-                dialog.deiconify()
-            except Exception:
-                pass
-            try:
-                dialog.attributes('-topmost', True)
-                dialog.after(100, lambda: dialog.attributes('-topmost', False))
-            except Exception:
-                pass
+            dialog.configure(bg=BRAND_COLOR_BG)
             
             # Sprawdz srodowisko i ustaw ikone
             try:
@@ -2505,224 +1723,104 @@ class RMKApp(tk.Tk):
             tree.column("Konto RMK", width=150, anchor='w')
             tree.column("Kategoria", width=180, anchor='w')
             
-            # Wypelnij tabele danymi - z zabezpieczeniami
+            # Wypelnij tabele danymi
             harmonogram_data = {}
-            print(f"DEBUG: filling harmonogram table, rows={len(getattr(item,'harmonogram',[]))}")
-            try:
-                harmonogram_rows = getattr(item, 'harmonogram', [])
-                if not harmonogram_rows:
-                    print("WARNING: Brak danych harmonogramu do wyświetlenia")
-                    ttk.Label(table_frame, text="Brak danych harmonogramu do edycji", 
-                             font=('Arial', 12)).grid(row=0, column=0, padx=20, pady=20)
-                    # Nie przerywaj całej funkcji - pokaż dialog z informacją, pozwól użytkownikowi go zamknąć
-                    harmonogram_rows = []
+            for r in item.harmonogram:
+                month = r.get('miesiac')
+                kwota = r.get('kwota', 0.0)
+                konto = r.get('konto', '')
+                konto_rmk = r.get('konto_rmk', '')
+                kategoria = r.get('kategoria', '')
                 
-                for r in harmonogram_rows:
-                    if not isinstance(r, dict):
-                        print(f"WARNING: Nieprawidłowy format rekordu: {r}")
-                        continue
-                        
-                    month = r.get('miesiac', '')
-                    kwota = r.get('kwota', 0.0)
-                    konto = r.get('konto', '')
-                    konto_rmk = r.get('konto_rmk', '')
-                    kategoria = r.get('kategoria', '')
-
-                    harmonogram_data[month] = {
-                        'kwota': kwota,
-                        'konto': konto,
-                        'konto_rmk': konto_rmk,
-                        'kategoria': kategoria
-                    }
-
-                    print(f"DEBUG: inserting harmonogram row: {month}, {kwota}")
-                    try:
-                        formatted_kwota = thousand_sep(float(kwota)) if kwota else "0,00"
-                        tree.insert('', 'end', values=(
-                            month,
-                            formatted_kwota,
-                            konto,
-                            konto_rmk,
-                            kategoria
-                        ))
-                    except Exception as format_error:
-                        print(f"WARNING: Błąd formatowania rekordu {month}: {format_error}")
-                        # Wstaw rekord z podstawowymi wartościami
-                        tree.insert('', 'end', values=(
-                            month,
-                            str(kwota),
-                            konto,
-                            konto_rmk,
-                            kategoria
-                        ))
-            except Exception as e:
-                import traceback as _tb
-                print(f"ERROR while filling harmonogram table: {e}\n{_tb.format_exc()}")
-                # Pokaż komunikat o błędzie w tabeli
-                ttk.Label(table_frame, text=f"Błąd ładowania danych: {e}", 
-                         font=('Arial', 10), foreground='red').grid(row=0, column=0, padx=20, pady=20)
-            print("DEBUG: finished filling harmonogram table")
+                harmonogram_data[month] = {
+                    'kwota': kwota,
+                    'konto': konto,
+                    'konto_rmk': konto_rmk,
+                    'kategoria': kategoria
+                }
+                
+                tree.insert('', 'end', values=(
+                    month,
+                    thousand_sep(kwota),
+                    konto,
+                    konto_rmk,
+                    kategoria
+                ))
             
             # Frame z przyciskami
             button_frame = ttk.Frame(dialog)
             button_frame.pack(fill=tk.X, padx=10, pady=5)
             
             def edit_selected_month():
-                """Edytuj wybrany miesiac - z zabezpieczeniami"""
-                try:
-                    selection = tree.selection()
-                    if not selection:
-                        messagebox.showinfo("Edycja", "Wybierz miesiac do edycji.")
-                        return
-                        
-                    item_id = selection[0]
-                    values = tree.item(item_id, 'values')
-                    if not values or len(values) < 2:
-                        messagebox.showerror("Błąd", "Nieprawidłowe dane wybranego miesiąca.")
-                        return
-                        
-                    month = values[0]
-                    if month not in harmonogram_data:
-                        messagebox.showerror("Błąd", f"Nie znaleziono danych dla miesiąca {month}.")
-                        return
-                        
-                    current_kwota = harmonogram_data[month]['kwota']
+                """Edytuj wybrany miesiac"""
+                selection = tree.selection()
+                if not selection:
+                    messagebox.showinfo("Edycja", "Wybierz miesiac do edycji.")
+                    return
                     
-                    # Dialog edycji kwoty z zabezpieczeniami
-                    try:
-                        new_kwota = simpledialog.askfloat(
-                            "Edycja kwoty",
-                            f"Nowa kwota dla {month}:",
-                            initialvalue=current_kwota,
-                            minvalue=0.0,
-                            parent=dialog
-                        )
-                    except Exception as dialog_error:
-                        print(f"DEBUG: Błąd dialog edycji: {dialog_error}")
-                        messagebox.showerror("Błąd", f"Nie udało się otworzyć dialogu edycji: {dialog_error}")
-                        return
+                item_id = selection[0]
+                values = tree.item(item_id, 'values')
+                month = values[0]
+                current_kwota = harmonogram_data[month]['kwota']
+                
+                # Dialog edycji kwoty
+                new_kwota = simpledialog.askfloat(
+                    "Edycja kwoty",
+                    f"Nowa kwota dla {month}:",
+                    initialvalue=current_kwota,
+                    minvalue=0.0
+                )
+                
+                if new_kwota is not None:
+                    # Aktualizuj dane
+                    harmonogram_data[month]['kwota'] = new_kwota
                     
-                    if new_kwota is not None:
-                        # Aktualizuj dane
-                        harmonogram_data[month]['kwota'] = new_kwota
-                        
-                        # Aktualizuj tabele
-                        new_values = list(values)
-                        new_values[1] = thousand_sep(new_kwota)
-                        tree.item(item_id, values=new_values)
-                        
-                        print(f"DEBUG: Zaktualizowano kwotę dla {month}: {new_kwota}")
-                        
-                except Exception as e:
-                    print(f"ERROR: Błąd edycji miesiąca: {e}")
-                    messagebox.showerror("Błąd", f"Wystąpił błąd podczas edycji: {e}")
+                    # Aktualizuj tabele
+                    new_values = list(values)
+                    new_values[1] = thousand_sep(new_kwota)
+                    tree.item(item_id, values=new_values)
             
             def save_changes():
-                """Zapisz zmiany harmonogramu - z zabezpieczeniami"""
+                """Zapisz zmiany harmonogramu"""
                 try:
-                    print("DEBUG: Rozpoczęcie zapisywania zmian harmonogramu")
-                    
-                    # Sprawdź czy mamy dane do zapisania
-                    if not harmonogram_data:
-                        messagebox.showwarning("Ostrzeżenie", "Brak danych do zapisania.")
-                        return
-                    
                     # Aktualizuj harmonogram w pozycji RMK
                     updated_harmonogram = []
                     for month, data in harmonogram_data.items():
-                        if not month:  # Pomiń puste miesiące
-                            continue
                         updated_harmonogram.append({
                             'miesiac': month,
-                            'kwota': data.get('kwota', 0.0),
-                            'konto': data.get('konto', ''),
-                            'konto_rmk': data.get('konto_rmk', ''),
-                            'kategoria': data.get('kategoria', '')
+                            'kwota': data['kwota'],
+                            'konto': data['konto'],
+                            'konto_rmk': data['konto_rmk'],
+                            'kategoria': data['kategoria']
                         })
                     
-                    if not updated_harmonogram:
-                        messagebox.showwarning("Ostrzeżenie", "Brak prawidłowych danych do zapisania.")
-                        return
-                    
                     item.harmonogram = updated_harmonogram
-                    print(f"DEBUG: Zaktualizowano harmonogram - {len(updated_harmonogram)} miesięcy")
+                    self._save_state()
                     
-                    # Zapisz stan aplikacji
-                    try:
-                        self._save_state()
-                        print("DEBUG: Stan aplikacji zapisany")
-                    except Exception as save_error:
-                        print(f"WARNING: Błąd zapisywania stanu: {save_error}")
-                        messagebox.showwarning("Ostrzeżenie", f"Harmonogram zaktualizowany, ale wystąpił błąd zapisywania: {save_error}")
-                    
-                    # Odswiez widok bezpiecznie
-                    try:
-                        self.refresh_rmk_tree()
-                        if hasattr(self, 'show_selected_harmonogram'):
-                            self.show_selected_harmonogram()
-                        print("DEBUG: Widok odświeżony")
-                    except Exception as refresh_error:
-                        print(f"WARNING: Błąd odświeżania widoku: {refresh_error}")
+                    # Odswiez widok
+                    self.refresh_rmk_tree()
+                    if hasattr(self, 'show_selected_harmonogram'):
+                        self.show_selected_harmonogram()
                     
                     messagebox.showinfo("Sukces", "Harmonogram zostal zaktualizowany.")
-                    
-                    # Bezpieczne zamknięcie dialogu
-                    try:
-                        dialog.destroy()
-                    except Exception as close_error:
-                        print(f"DEBUG: Błąd zamykania dialogu: {close_error}")
+                    dialog.destroy()
                     
                 except Exception as e:
-                    print(f"ERROR: Błąd zapisywania zmian: {e}")
-                    import traceback
-                    print(f"Traceback: {traceback.format_exc()}")
                     messagebox.showerror("Blad", f"Nie udalo sie zapisac zmian:\n{e}")
             
-            # Przyciski - z zabezpieczeniami
-            def safe_close():
-                """Bezpieczne zamknięcie dialogu"""
-                try:
-                    print("DEBUG: Zamykanie dialogu edycji harmonogramu")
-                    dialog.destroy()
-                except Exception as e:
-                    print(f"DEBUG: Błąd zamykania dialogu: {e}")
+            # Przyciski
+            ttk.Button(button_frame, text="Edytuj kwote", command=edit_selected_month).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Zapisz zmiany", command=save_changes).pack(side=tk.RIGHT, padx=5)
+            ttk.Button(button_frame, text="Anuluj", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
             
-            try:
-                ttk.Button(button_frame, text="Edytuj kwote", command=edit_selected_month).pack(side=tk.LEFT, padx=5)
-                ttk.Button(button_frame, text="Zapisz zmiany", command=save_changes).pack(side=tk.RIGHT, padx=5)
-                ttk.Button(button_frame, text="Anuluj", command=safe_close).pack(side=tk.RIGHT, padx=5)
-            except Exception as button_error:
-                print(f"ERROR: Błąd tworzenia przycisków: {button_error}")
-                # Fallback - podstawowy przycisk zamknięcia
-                ttk.Button(button_frame, text="Zamknij", command=safe_close).pack(pady=10)
-            
-            # Ustaw fokus i pokaz dialog - z zabezpieczeniami przeciw blokadzie
-            try:
-                dialog.transient(parent)
-            except Exception as e:
-                print(f"DEBUG: Nie udało się ustawić transient: {e}")
-            
-            # Bezpieczne ustawienie grab_set z timeoutem
-            try:
-                dialog.after(100, lambda: dialog.grab_set())  # Opóźnij grab_set
-            except Exception as e:
-                print(f"DEBUG: Nie udało się ustawić grab_set: {e}")
-            
-            # Bezpieczne ustawienie focus
-            try:
-                dialog.after(200, lambda: dialog.focus_set())  # Opóźnij focus_set
-            except Exception as e:
-                print(f"DEBUG: Nie udało się ustawić focus: {e}")
-            
-            # Dodaj przycisk ESC do zamykania
-            dialog.bind('<Escape>', lambda e: dialog.destroy())
+            # Ustaw fokus i pokaz dialog
+            dialog.transient(self.root)
+            dialog.grab_set()
+            dialog.focus_set()
             
         except Exception as e:
             print(f"BLAD w _open_harmonogram_edit_dialog: {e}")
-            if not getattr(self, '_headless', False):
-                messagebox.showerror(APP_NAME, f"Nie udalo sie otworzyc dialogu edycji:\n{e}")
-            else:
-                print(f"DEBUG: _open_harmonogram_edit_dialog exception: {e}")
+            messagebox.showerror(APP_NAME, f"Nie udalo sie otworzyc dialogu edycji:\n{e}")
 
     def _save_state(self):
         path = self._state_file()
@@ -3091,8 +2189,6 @@ Funkcjonalnosci:
         self._build_tab_podsumowanie(nb)
         self._build_tab_rmk_next_year(nb)
         self._build_tab_rmk_by_years(nb)
-        # Kategorie przeniesione do osobnej zakladki
-        self._build_tab_kategorie(nb)
         self._build_tab_slownik(nb)
         self._build_tab_admin(nb)
         self._build_tab_reports(nb)
@@ -3107,7 +2203,7 @@ Funkcjonalnosci:
         toolbar = ttk.Frame(tab)
         toolbar.pack(fill=tk.X, padx=8, pady=6)
         create_btn(self, toolbar, text="+ Dodaj", command=self.add_item, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        create_btn(self, toolbar, text="Edytuj", command=self.edit_item, bootstyle='warning').pack(side=tk.LEFT, padx=4)
+        ttk.Button(toolbar, text="Edytuj", command=self.edit_item).pack(side=tk.LEFT, padx=4)
         ttk.Button(toolbar, text="Usun", command=self.delete_item).pack(side=tk.LEFT, padx=4)
         create_btn(self, toolbar, text="Generuj harmonogram", command=self.generate_harmonogram, bootstyle='primary').pack(side=tk.LEFT, padx=4)
         ttk.Button(toolbar, text="Import Excel", command=self.import_excel).pack(side=tk.LEFT, padx=4)
@@ -3602,100 +2698,80 @@ Funkcjonalnosci:
         footer.append(thousand_sep(grand))
         tree.insert('', 'end', values=footer)
 
-    def _build_tab_kategorie(self, nb):
-        """Nowa zakladka zawierajaca tylko liste kategorii"""
-        tab = ttk.Frame(nb)
-        tab.configure(style='Light.TFrame')
-        nb.add(tab, text="Kategorie")
-
-        toolbar = ttk.Frame(tab)
-        toolbar.pack(fill=tk.X, padx=8, pady=6)
-        btnf = ttk.Frame(toolbar)
-        btnf.pack(anchor='e')
-        self._btn(btnf, text="+ Dodaj", command=self.add_category, bootstyle='success').pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="Edytuj", command=self.edit_category).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btnf, text="Usun", command=self.delete_category).pack(side=tk.LEFT, padx=4)
-
-        frame = ttk.Frame(tab)
-        frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-
-        # Treeview dla kategorii
-        self.cat_tree = ttk.Treeview(frame, columns=("kategoria",), show='headings', style='Dictionary.Treeview')
-        v = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.cat_tree.yview)
-        self.cat_tree.configure(yscrollcommand=v.set)
-        self.cat_tree.heading("kategoria", text="Kategoria")
-        self.cat_tree.grid(row=0, column=0, sticky='nsew')
-        v.grid(row=0, column=1, sticky='ns')
-        frame.grid_rowconfigure(0, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
-
-        configure_single_treeview_borders(self.cat_tree)
-        self.refresh_cat_tree()
-
     def _build_tab_slownik(self, nb):
         tab = ttk.Frame(nb)
         tab.configure(style='Light.TFrame')  # Lekko szare tlo
         nb.add(tab, text="Slowniki")
         topf = ttk.Frame(tab)
         topf.pack(fill=tk.X, padx=8, pady=6)
-
-        # Kategorie przeniesione do oddzielnej zakladki (_build_tab_kategorie)
-        # Pozostawiamy tutaj puste miejsce aby Slowniki zawieraly tylko konta.
-        # Jeśli w przyszlosci zechcemy dodac skróty/filtry, mozemy uzyc tego miejsca.
-        spacer = ttk.Frame(tab, height=4)
-        spacer.pack(fill=tk.X, pady=2)
-
+        lf = ttk.Labelframe(tab, text="Kategorie RMK", padding=6)
+        lf.pack(fill=tk.X, padx=8, pady=3)  # Zmieniono: fill=tk.X zamiast tk.BOTH, pady=3 zamiast 6
+        btnf = ttk.Frame(lf)
+        btnf.pack(anchor='e', pady=4)
+        self._btn(btnf, text="+ Dodaj", command=self.add_category, bootstyle='success').pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Edytuj", command=self.edit_category).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btnf, text="Usun", command=self.delete_category).pack(side=tk.LEFT, padx=4)
+        
+        # Frame ze scrollbarem dla kategorii
+        cat_frame = ttk.Frame(lf)
+        cat_frame.pack(fill=tk.X, pady=4)  # Zmieniono: fill=tk.X zamiast tk.BOTH, expand=False
+        
+        self.cat_tree = ttk.Treeview(cat_frame, columns=("kategoria",), show='headings', height=6, style='Dictionary.Treeview')  # Zmniejszono height do 6
+        cat_scrollbar = ttk.Scrollbar(cat_frame, orient="vertical", command=self.cat_tree.yview)
+        self.cat_tree.configure(yscrollcommand=cat_scrollbar.set)
+        
+        self.cat_tree.heading("kategoria", text="Kategoria")
+        self.cat_tree.pack(side="left", fill=tk.X, expand=True)  # Zmieniono: fill=tk.X zamiast tk.BOTH
+        cat_scrollbar.pack(side="right", fill="y")
+        
+        # Dodaj obramowania do tabeli kategorii
+        configure_single_treeview_borders(self.cat_tree)
         lf2 = ttk.Labelframe(tab, text="Konta ksiegowe", padding=6)
-        lf2.pack(fill=tk.BOTH, expand=True, padx=8, pady=3)
+        lf2.pack(fill=tk.X, padx=8, pady=3)  # Zmieniono: fill=tk.X zamiast tk.BOTH, pady=3
         btnf2 = ttk.Frame(lf2)
         btnf2.pack(anchor='e', pady=4)
         self._btn(btnf2, text="+ Dodaj", command=self.add_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
         ttk.Button(btnf2, text="Edytuj", command=self.edit_account).pack(side=tk.LEFT, padx=4)
         ttk.Button(btnf2, text="Usun", command=self.delete_account).pack(side=tk.LEFT, padx=4)
-
+        
         # Frame ze scrollbarem dla kont ksiegowych
         acc_frame = ttk.Frame(lf2)
-        acc_frame.pack(fill=tk.BOTH, expand=True, pady=4)
-
-        self.acc_tree = ttk.Treeview(acc_frame, columns=("konto", "opis"), show='headings', style='Dictionary.Treeview')
+        acc_frame.pack(fill=tk.X, pady=4)  # Zmieniono: fill=tk.X zamiast tk.BOTH, expand=False
+        
+        self.acc_tree = ttk.Treeview(acc_frame, columns=("konto", "opis"), show='headings', height=6, style='Dictionary.Treeview')  # Zmniejszono height do 6
         acc_scrollbar = ttk.Scrollbar(acc_frame, orient="vertical", command=self.acc_tree.yview)
         self.acc_tree.configure(yscrollcommand=acc_scrollbar.set)
-
+        
         self.acc_tree.heading("konto", text="Konto")
         self.acc_tree.heading("opis", text="Opis")
-        self.acc_tree.grid(row=0, column=0, sticky='nsew')
-        acc_scrollbar.grid(row=0, column=1, sticky='ns')
-        acc_frame.grid_rowconfigure(0, weight=1)
-        acc_frame.grid_columnconfigure(0, weight=1)
-
+        self.acc_tree.pack(side="left", fill=tk.X, expand=True)  # Zmieniono: fill=tk.X zamiast tk.BOTH
+        acc_scrollbar.pack(side="right", fill="y")
+        
         # Dodaj obramowania do tabeli kont
         configure_single_treeview_borders(self.acc_tree)
-
         lf3 = ttk.Labelframe(tab, text="Konta RMK", padding=6)
-        lf3.pack(fill=tk.BOTH, expand=True, padx=8, pady=3)
+        lf3.pack(fill=tk.X, padx=8, pady=3)  # Zmieniono: fill=tk.X zamiast tk.BOTH, pady=3
         btnf3 = ttk.Frame(lf3)
         btnf3.pack(anchor='e', pady=4)
         self._btn(btnf3, text="+ Dodaj", command=self.add_rmk_account, bootstyle='success').pack(side=tk.LEFT, padx=4)
         ttk.Button(btnf3, text="Edytuj", command=self.edit_rmk_account).pack(side=tk.LEFT, padx=4)
         ttk.Button(btnf3, text="Usun", command=self.delete_rmk_account).pack(side=tk.LEFT, padx=4)
-
+        
         # Frame ze scrollbarem dla kont RMK
         rmk_acc_frame = ttk.Frame(lf3)
-        rmk_acc_frame.pack(fill=tk.BOTH, expand=True, pady=4)
-
-        self.rmk_acc_tree = ttk.Treeview(rmk_acc_frame, columns=("konto", "opis"), show='headings', style='Dictionary.Treeview')
+        rmk_acc_frame.pack(fill=tk.X, pady=4)  # Zmieniono: fill=tk.X zamiast tk.BOTH, expand=False
+        
+        self.rmk_acc_tree = ttk.Treeview(rmk_acc_frame, columns=("konto", "opis"), show='headings', height=6, style='Dictionary.Treeview')  # Zmniejszono height do 6
         rmk_acc_scrollbar = ttk.Scrollbar(rmk_acc_frame, orient="vertical", command=self.rmk_acc_tree.yview)
         self.rmk_acc_tree.configure(yscrollcommand=rmk_acc_scrollbar.set)
-
+        
         self.rmk_acc_tree.heading("konto", text="Konto RMK")
         self.rmk_acc_tree.heading("opis", text="Opis")
         self.rmk_acc_tree.column("konto", width=120, minwidth=80)
         self.rmk_acc_tree.column("opis", width=250, minwidth=150)
-        self.rmk_acc_tree.grid(row=0, column=0, sticky='nsew')
-        rmk_acc_scrollbar.grid(row=0, column=1, sticky='ns')
-        rmk_acc_frame.grid_rowconfigure(0, weight=1)
-        rmk_acc_frame.grid_columnconfigure(0, weight=1)
-
+        self.rmk_acc_tree.pack(side="left", fill=tk.X, expand=True)  # Zmieniono: fill=tk.X zamiast tk.BOTH
+        rmk_acc_scrollbar.pack(side="right", fill="y")
+        
         # Dodaj obramowania do tabeli kont RMK
         configure_single_treeview_borders(self.rmk_acc_tree)
         self.refresh_cat_tree()
@@ -3758,11 +2834,6 @@ Funkcjonalnosci:
         # Dodaj obramowania do tabeli firm
         configure_single_treeview_borders(self.company_tree)
         self.refresh_company_tree()
-        # Allow selecting a company in the Admin tab to switch current company quickly
-        try:
-            self.company_tree.bind('<<TreeviewSelect>>', self.on_company_tree_select)
-        except Exception:
-            pass
 
     def _build_tab_reports(self, nb):
         tab = ttk.Frame(nb)
@@ -3945,18 +3016,9 @@ Funkcjonalnosci:
             print(f"Blad sortowania: {e}")
 
     def refresh_rmk_tree(self):
-        # If the main RMK tree widget isn't created (headless or partial GUI init),
-        # still update comboboxes and internal state. Only manipulate the Treeview
-        # if it exists.
-        has_tree = hasattr(self, 'tree')
-        # Debugging: show current filter context and number of items
-        try:
-            cur_dbg = getattr(self, 'current_company', '')
-            print(f"DEBUG refresh_rmk_tree: current_company='{cur_dbg}', total_rmk_items={len(getattr(self,'rmk_items', []))}")
-        except Exception:
-            pass
-        if has_tree:
-            self.tree.delete(*self.tree.get_children())
+        if not hasattr(self, 'tree'):
+            return
+        self.tree.delete(*self.tree.get_children())
         # Show only items for the current company for non-admin users
         try:
             is_admin = bool(getattr(self, 'current_user_admin', False))
@@ -3971,64 +3033,37 @@ Funkcjonalnosci:
             kw = thousand_sep(it.kwota)
             status_sym = '✓' if getattr(it, 'harmonogram_generated', False) else '✗'
             uwagi_text = getattr(it, 'uwagi', '') or ''  # Obsluga starych danych bez pola uwagi
-
-            # If tree exists, insert into UI. If not, skip UI insertion (headless tests).
-            if has_tree:
-                self.tree.insert('', 'end', iid=str(it.id), values=(it.id, it.opis, it.data_start.isoformat(), it.data_koniec.isoformat() if it.data_koniec else "", it.liczba_mies, kw, it.kategoria, it.konto_kosztowe, it.konto_rmk, it.numer_faktury, it.kontrahent, status_sym, uwagi_text))
-
-            # color row green if generated, red otherwise (only if tree exists)
+            self.tree.insert('', 'end', iid=str(it.id), values=(it.id, it.opis, it.data_start.isoformat(), it.data_koniec.isoformat() if it.data_koniec else "", it.liczba_mies, kw, it.kategoria, it.konto_kosztowe, it.konto_rmk, it.numer_faktury, it.kontrahent, status_sym, uwagi_text))
+            # color row green if generated, red otherwise
             try:
                 if getattr(it, 'harmonogram_generated', False):
-                    if has_tree:
-                        self.tree.item(str(it.id), tags=('gen',))
+                    self.tree.item(str(it.id), tags=('gen',))
                 else:
-                    if has_tree:
-                        self.tree.item(str(it.id), tags=('ungen',))
+                    self.tree.item(str(it.id), tags=('ungen',))
             except Exception:
                 pass
         # tag styles (ttk Treeview doesn't support tag foreground/bg directly in all themes)
         try:
-            if has_tree:
-                self.tree.tag_configure('gen', background='#d4edda', foreground='#000000')  # Jasnozielone tlo, czarny tekst
-                self.tree.tag_configure('ungen', background='#f8d7da', foreground='#000000')  # Jasnorozowe tlo, czarny tekst
+            self.tree.tag_configure('gen', background='#d4edda', foreground='#000000')  # Jasnozielone tlo, czarny tekst
+            self.tree.tag_configure('ungen', background='#f8d7da', foreground='#000000')  # Jasnorozowe tlo, czarny tekst
         except Exception:
             pass
-
-        # Wymoz odswiezenie kolorow po zaladowaniu danych (jesli mamy UI)
+        
+        # Wymoz odswiezenie kolorow po zaladowaniu danych
         try:
-            if has_tree:
-                self.tree.after(50, lambda: self.tree.event_generate('<<TreeviewOpen>>'))
-                try:
-                    # Ensure immediate visual update
-                    self.tree.update_idletasks()
-                except Exception:
-                    pass
+            self.tree.after(50, lambda: self.tree.event_generate('<<TreeviewOpen>>'))
         except Exception:
             pass
         # update harmonogram item combobox values
         try:
             vals = [f"{it.id}: {it.kategoria} | {it.opis} | {it.data_start.strftime('%Y-%m-%d')} - {it.data_koniec.strftime('%Y-%m-%d') if it.data_koniec else 'N/A'}" for it in self.rmk_items if not cur_company or not it.firma or it.firma == cur_company]
             if hasattr(self, 'harmo_item_cb'):
-                # Try the most explicit operation first so tests that replace the widget
-                # with a MagicMock will observe a __setitem__ call reliably.
-                try:
-                    self.harmo_item_cb.__setitem__('values', vals)
-                except Exception:
-                    # Fall back to common widget APIs
+                self.harmo_item_cb['values'] = vals
+                if vals:
                     try:
-                        if hasattr(self.harmo_item_cb, 'configure'):
-                            self.harmo_item_cb.configure(values=vals)
-                        else:
-                            self.harmo_item_cb['values'] = vals
-                    except Exception:
-                        # ignore errors in headless/tests
-                        pass
-                # Try to select first item if possible
-                try:
-                    if vals and hasattr(self.harmo_item_cb, 'current'):
                         self.harmo_item_cb.current(0)
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -4075,72 +3110,26 @@ Funkcjonalnosci:
             self.user_tree.insert('', 'end', iid=u, values=(u, 'Admin' if d['is_admin'] else 'Uzytkownik', firms))
 
     def refresh_company_tree(self):
-        # Sprawdź czy tabela firm istnieje (tylko w zakładce Admin dla adminów)
-        if not hasattr(self, 'company_tree') or self.company_tree is None:
-            return
-        try:
-            self.company_tree.delete(*self.company_tree.get_children())
-            for c in self.companies:
-                self.company_tree.insert('', 'end', values=(c,))
-        except Exception as e:
-            print(f"DEBUG: Błąd odświeżania tabeli firm: {e}")
-
-    def on_company_tree_select(self, event=None):
-        """Handler when user selects a company in the Companies table in Admin tab.
-        Set the current company context and refresh views (convenience for users).
-        """
-        try:
-            sel = self.company_tree.selection()
-            if not sel:
-                return
-            comp = self.company_tree.item(sel[0], 'values')[0]
-            if comp:
-                self.current_company = comp
-                try:
-                    self.title(f"{APP_NAME} - {self.current_company}")
-                except Exception:
-                    pass
-                # refresh dependent views
-                try:
-                    self.refresh_rmk_tree()
-                    self.refresh_acc_tree()
-                    self.refresh_rmk_acc_tree()
-                except Exception:
-                    pass
-                print(f"DEBUG: on_company_tree_select -> current_company set to '{comp}' and views refreshed")
-        except Exception as e:
-            print(f"DEBUG ERROR on_company_tree_select: {e}")
+        self.company_tree.delete(*self.company_tree.get_children())
+        for c in self.companies:
+            self.company_tree.insert('', 'end', values=(c,))
 
     # ---- RMK CRUD ----
     def add_item(self):
-        # Zabezpieczenie dla trybu headless
-        if getattr(self, '_headless', False):
-            print("DEBUG: add_item - tryb headless, pomijam")
-            return
-            
-        try:
-            print("DEBUG: add_item - tworzenie ItemDialog...")
-            dlg = ItemDialog(self, None)
-            print(f"DEBUG: add_item - dialog utworzony, result={getattr(dlg, 'result', None)}")
-            
-            if dlg.result:
-                new_id = (max([it.id for it in self.rmk_items]) + 1) if self.rmk_items else 1
-                r = dlg.result
-                firma = r.get('firma') or (self.current_company if hasattr(self, 'current_company') else '')
-                item = RMKItem(new_id, r['opis'], r['data_start'], r['liczba_mies'], r['kwota'], firma, r['kategoria'], r['konto_kosztowe'], r['konto_rmk'], r['numer_faktury'], r['kontrahent'], r.get('uwagi', ''), r['data_koniec'])
-                # new item - no harmonogram generated yet
-                item.harmonogram_generated = False
-                item.harmonogram = []
-                self.rmk_items.append(item)
-                self.refresh_rmk_tree()
-                self._save_state()
-                print(f"DEBUG: Dodano pozycję RMK id={new_id}, opis='{r['opis']}'")
-        except Exception as e:
-            print(f"ERROR: Błąd dodawania pozycji RMK: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            if not getattr(self, '_headless', False):
-                messagebox.showerror(APP_NAME, f"Błąd podczas dodawania pozycji: {e}")
+        dlg = ItemDialog(self, None)
+        if dlg.result:
+            new_id = (max([it.id for it in self.rmk_items]) + 1) if self.rmk_items else 1
+            r = dlg.result
+            firma = r.get('firma') or (self.current_company if hasattr(self, 'current_company') else '')
+            item = RMKItem(new_id, r['opis'], r['data_start'], r['liczba_mies'], r['kwota'], firma, r['kategoria'], r['konto_kosztowe'], r['konto_rmk'], r['numer_faktury'], r['kontrahent'], r.get('uwagi', ''), r['data_koniec'])
+            # Uwagi juz sa w konstruktorze
+            # item.uwagi = r.get('uwagi', '')
+            # new item - no harmonogram generated yet
+            item.harmonogram_generated = False
+            item.harmonogram = []
+            self.rmk_items.append(item)
+            self.refresh_rmk_tree()
+            self._save_state()
     def import_excel(self):
         if openpyxl is None:
             messagebox.showerror(APP_NAME, "Brak biblioteki openpyxl. Zainstaluj zaleznosc (pip install openpyxl).")
@@ -4414,7 +3403,6 @@ Funkcjonalnosci:
         return ans['ok']
 
     def edit_item(self):
-        print("DEBUG: edit_item called")
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo(APP_NAME, "Wybierz pozycje do edycji.")
@@ -4425,20 +3413,8 @@ Funkcjonalnosci:
         if not item:
             messagebox.showerror(APP_NAME, "Nie znaleziono pozycji.")
             return
-        try:
-            print(f"DEBUG: creating ItemDialog for id={it_id}")
-            dlg = ItemDialog(self, item)
-            print(f"DEBUG: edit_item after ItemDialog returned -> dlg is {dlg}, result={getattr(dlg, 'result', None)}")
-        except Exception as e:
-            import traceback as _tb
-            tb = _tb.format_exc()
-            print(f"ERROR creating ItemDialog: {e}\n{tb}")
-            try:
-                messagebox.showerror(APP_NAME, f"Blad otwierania dialogu edycji: {e}")
-            except Exception:
-                pass
-            return
-        if dlg and getattr(dlg, 'result', None):
+        dlg = ItemDialog(self, item)
+        if dlg.result:
             r = dlg.result
             # For non-admins firma should remain unchanged; admins may change it via dialog
             try:
@@ -4468,11 +3444,6 @@ Funkcjonalnosci:
             self._save_state()
 
     def delete_item(self):
-        # Zabezpieczenie dla trybu headless
-        if getattr(self, '_headless', False):
-            print("DEBUG: delete_item - tryb headless, pomijam")
-            return
-            
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo(APP_NAME, "Wybierz pozycje do usuniecia.")
@@ -4490,275 +3461,224 @@ Funkcjonalnosci:
     # ---- harmonogram ----
     def generate_harmonogram(self):
         """Generuj harmonogram z pelna obsluga bledow"""
-        # Zabezpieczenie dla trybu headless
-        if getattr(self, '_headless', False):
-            print("DEBUG: generate_harmonogram - tryb headless, pomijam")
-            return
-            
         # Walidacja podstawowa
-        print("DEBUG: generate_harmonogram called")
         sel = self.tree.selection()
-        if not sel:
-            # Fallback: try focused item (user may have focused row but not selected)
-            try:
-                fid = self.tree.focus()
-                if fid:
-                    sel = (fid,)
-                    print(f"DEBUG: no selection, using focus fallback fid={fid}")
-            except Exception:
-                fid = None
         if not sel:
             messagebox.showinfo(APP_NAME, "Wybierz pozycje z listy RMK.")
             return
-
-        iid = sel[0]
-        print(f"DEBUG: selected iid={iid}")
-        vals = self.tree.item(iid, 'values')
-        print(f"DEBUG: row values={vals}")
-
-        # Walidacja danych pozycji RMK
-        if len(vals) < 9:
-            messagebox.showerror(APP_NAME, "Niepelne dane pozycji RMK. Sprawdz czy wszystkie pola sa wypelnione.")
-            return
-
-        # Walidacja daty poczatkowej
-        try:
-            start = datetime.strptime(str(vals[2]), "%Y-%m-%d").date()
-            print(f"DEBUG: parsed start={start}")
-        except Exception as e:
-            messagebox.showerror(APP_NAME, f"Nieprawidlowa data poczatkowa: {vals[2]}\nBlad: {e}")
-            return
-
-        # Walidacja liczby miesiecy
-        try:
-            liczba_mies = int(vals[4])
-            if liczba_mies <= 0:
-                raise ValueError("Liczba miesiecy musi byc wieksza od 0")
-            print(f"DEBUG: parsed liczba_mies={liczba_mies}")
-        except Exception as e:
-            messagebox.showerror(APP_NAME, f"Nieprawidlowa liczba miesiecy: {vals[4]}\nBlad: {e}")
-            return
-
-        # Walidacja kwoty
-        try:
-            kw_str = str(vals[5])
-            kw_str = kw_str.replace(' ', '').replace(',', '.')
-            kwota = float(kw_str)
-            if kwota <= 0:
-                raise ValueError("Kwota musi byc wieksza od 0")
-            print(f"DEBUG: parsed kwota={kwota}")
-        except Exception as e:
-            messagebox.showerror(APP_NAME, f"Nieprawidlowa kwota: {vals[5]}\nBlad: {e}")
-            return
-
-        # Walidacja kont
-        if not str(vals[7]).strip() or not str(vals[8]).strip():
-            messagebox.showerror(APP_NAME, "Brakuje przypisanego konta ksiegowego lub konta RMK.")
-            return
-
-        # Obsluz pusta date konca z obsluga bledow
-        end_str = str(vals[3]).strip()
-        try:
-            if end_str and end_str != "":
-                end = datetime.strptime(end_str, "%Y-%m-%d").date()
-                # Sprawdz czy data koncowa nie jest rowna lub wczesniejsza niz poczatkowa
-                if end <= start:
-                    # Jesli tak, oblicz automatycznie na podstawie liczby miesiecy
-                    print(f"DEBUG: data koncowa ({end}) <= start ({start}), obliczam automatycznie")
+                
+            iid = sel[0]
+            vals = self.tree.item(iid, 'values')
+            
+            # Walidacja danych pozycji RMK
+            if len(vals) < 9:
+                messagebox.showerror(APP_NAME, "Niepelne dane pozycji RMK. Sprawdz czy wszystkie pola sa wypelnione.")
+                return
+            
+            # Walidacja daty poczatkowej
+            try:
+                start = datetime.strptime(str(vals[2]), "%Y-%m-%d").date()
+            except Exception as e:
+                messagebox.showerror(APP_NAME, f"Nieprawidlowa data poczatkowa: {vals[2]}\nBlad: {e}")
+                return
+            
+            # Walidacja liczby miesiecy
+            try:
+                liczba_mies = int(vals[4])
+                if liczba_mies <= 0:
+                    raise ValueError("Liczba miesiecy musi byc wieksza od 0")
+            except Exception as e:
+                messagebox.showerror(APP_NAME, f"Nieprawidlowa liczba miesiecy: {vals[4]}\nBlad: {e}")
+                return
+            
+            # Walidacja kwoty
+            try:
+                kw_str = str(vals[5])
+                kw_str = kw_str.replace(' ', '').replace(',', '.')
+                kwota = float(kw_str)
+                if kwota <= 0:
+                    raise ValueError("Kwota musi byc wieksza od 0")
+            except Exception as e:
+                messagebox.showerror(APP_NAME, f"Nieprawidlowa kwota: {vals[5]}\nBlad: {e}")
+                return
+            
+            # Walidacja kont
+            if not str(vals[7]).strip() or not str(vals[8]).strip():
+                messagebox.showerror(APP_NAME, "Brakuje przypisanego konta ksiegowego lub konta RMK.")
+                return
+            
+            # Obsluz pusta date konca z obsluga bledow
+            end_str = str(vals[3]).strip()
+            try:
+                if end_str and end_str != "":
+                    end = datetime.strptime(end_str, "%Y-%m-%d").date()
+                else:
+                    # Jesli data konca jest pusta, oblicz na podstawie liczby miesiecy
+                    # Dodaj liczbe miesiecy do daty poczatkowej
                     end_year = start.year + (start.month + liczba_mies - 1) // 12
                     end_month = (start.month + liczba_mies - 1) % 12 + 1
-                    end_day = calendar.monthrange(end_year, end_month)[1]
+                    # Ostatni dzien okresu to dzien przed data rozpoczecia nastepnego miesiaca
+                    end_day = calendar.monthrange(end_year, end_month)[1]  # ostatni dzien miesiaca
                     end = datetime(end_year, end_month, end_day).date()
-                    print(f"DEBUG: obliczona data koncowa: {end}")
-            else:
-                # Jesli data konca jest pusta, oblicz na podstawie liczby miesiecy
-                # Dodaj liczbe miesiecy do daty poczatkowej
-                end_year = start.year + (start.month + liczba_mies - 1) // 12
-                end_month = (start.month + liczba_mies - 1) % 12 + 1
-                # Ostatni dzien okresu to dzien przed data rozpoczecia nastepnego miesiaca
-                end_day = calendar.monthrange(end_year, end_month)[1]  # ostatni dzien miesiaca
-                end = datetime(end_year, end_month, end_day).date()
-
-            # Sprawdz czy daty sa logiczne po obliczeniu
-            if end <= start:
-                messagebox.showerror(APP_NAME, f"Data koncowa ({end}) musi byc pozniejsza niz data poczatkowa ({start}). Sprawdz liczbe miesiecy.")
+                    
+                # Sprawdz czy daty sa logiczne
+                if end <= start:
+                    messagebox.showerror(APP_NAME, f"Data koncowa ({end}) musi byc pozniejsza niz data poczatkowa ({start}).")
+                    return
+                
+            except Exception as e:
+                messagebox.showerror(APP_NAME, f"Blad obliczania daty koncowej: {e}")
                 return
-
-        except Exception as e:
-            messagebox.showerror(APP_NAME, f"Blad obliczania daty koncowej: {e}")
-            return
-
-        # Nowa logika: precyzyjne dzielenie wedlug dni z transpozycja tabeli
-        try:
-            print("DEBUG: clearing harmo_tree children")
-            self.harmo_tree.delete(*self.harmo_tree.get_children())
-        except Exception as e:
-            print(f"Ostrzezenie - czyszczenie tabeli harmonogramu: {e}")
-
-        # Zbierz dane harmonogramu z obsluga bledow
-        harmonogram_data = {}  # miesiac -> kwota
-        harmonogram_rows = []
-
-        # Oblicz calkowita liczbe dni
-        total_days = (end - start).days + 1
-        if total_days <= 0:
-            messagebox.showerror(APP_NAME, f"Nieprawidlowy okres: {total_days} dni")
-            return
-
-        kwota_na_dzien = kwota / total_days
-
-        print(f"DEBUG: Generowanie harmonogramu {start} -> {end}, dni: {total_days}, kwota/dzien: {kwota_na_dzien:.4f}")
-
-        current_date = start
-        suma_kwot = 0.0
-        months_list = []  # Lista miesiecy w kolejnosci
-
-        while current_date <= end:
-            # Znajdz ostatni dzien tego miesiaca w zakresie
-            year = current_date.year
-            month = current_date.month
-
-            # Ostatni dzien miesiaca
-            if month == 12:
-                next_month_start = date(year + 1, 1, 1)
-            else:
-                next_month_start = date(year, month + 1, 1)
-            last_day_of_month = next_month_start - timedelta(days=1)
-
-            # Koniec okresu dla tego miesiaca (min z konca okresu i konca miesiaca)
-            period_end = min(end, last_day_of_month)
-
-            # Liczba dni w tym miesiacu dla naszego okresu
-            days_in_period = (period_end - current_date).days + 1
-
-            # Kwota dla tego miesiaca
-            kwota_miesiac = round(kwota_na_dzien * days_in_period, 2)
-            suma_kwot += kwota_miesiac
-
-            month_key = current_date.strftime("%Y-%m")
-            months_list.append(month_key)
-            harmonogram_data[month_key] = kwota_miesiac
-
-            harmonogram_rows.append({
-                'miesiac': month_key,
-                'kwota': float(kwota_miesiac),
-                'konto': vals[7],
-                'konto_rmk': vals[8],
-                'kategoria': vals[6]
-            })
-
-            # Przejdz do pierwszego dnia nastepnego miesiaca
-            current_date = next_month_start
-
-        # Sprawdz roznice i dodaj do ostatniego miesiaca jesli potrzeba
-        roznica = round(kwota - suma_kwot, 2)
-        if abs(roznica) > 0.01 and months_list:  # Jesli roznica > 1 grosz
-            # Dodaj roznice do ostatniego miesiaca
-            last_month = months_list[-1]
-            harmonogram_data[last_month] += roznica
-            harmonogram_rows[-1]['kwota'] += roznica
-
-        # Skonfiguruj kolumny tabeli (dynamicznie) z obsluga bledow
-        columns = ["Pozycja"] + months_list + ["Razem"]
-        self.harmo_tree["columns"] = columns
-
-        # Skonfiguruj naglowki i szerokosci kolumn
-        for col in columns:
-            if col == "Pozycja":
-                self.harmo_tree.heading(col, text="Pozycja")
-                self.harmo_tree.column(col, width=120, anchor='w')
-            elif col == "Razem":
-                self.harmo_tree.heading(col, text="Razem")
-                self.harmo_tree.column(col, width=120, anchor='e')
-            else:
-                # Miesiace
-                self.harmo_tree.heading(col, text=col)
-                self.harmo_tree.column(col, width=100, anchor='e')
-
-        # Dodaj jeden wiersz z kwotami
-        row_values = ["Kwoty miesieczne"]
-        total_sum = 0.0
-        for month in months_list:
-            kwota_m = harmonogram_data[month]
-            row_values.append(thousand_sep(kwota_m))
-            total_sum += kwota_m
-        row_values.append(thousand_sep(total_sum))
-
-        print(f"DEBUG: inserting row_values={row_values}")
-        self.harmo_tree.insert('', 'end', values=row_values)
-        try:
-            # Force immediate redraw in some environments where UI may not refresh
-            self.harmo_tree.update_idletasks()
-        except Exception:
-            pass
-
-        # persist into RMKItem z obsluga bledow
-        try:
-            it_id = int(iid)
-            item = next((x for x in self.rmk_items if x.id == it_id), None)
-            if item:
-                item.harmonogram = harmonogram_rows
-                item.harmonogram_generated = True
-                self._save_state()
-                # refresh list to update status
-                self.refresh_rmk_tree()
-                print(f"DEBUG: Zapisano harmonogram dla pozycji ID {it_id}")
-            else:
-                print(f"UWAGA: Nie znaleziono pozycji RMK o ID {it_id}")
-        except Exception as e:
-            print(f"BLAD zapisywania harmonogramu: {e}")
-            messagebox.showwarning(APP_NAME, f"Harmonogram zostal wygenerowany, ale wystapil problem z zapisem: {e}")
-
-        # Pokaz informacje o wygenerowanym harmonogramie
-        try:
-            miesiecy = len(harmonogram_rows)
-            suma_kontrolna = sum(row['kwota'] for row in harmonogram_rows)
-            # Headless guard - nie pokazuj messageboxow w trybie headless
-            if not getattr(self, '_headless', False):
+                
+            # Nowa logika: precyzyjne dzielenie wedlug dni z transpozycja tabeli
+            try:
+                self.harmo_tree.delete(*self.harmo_tree.get_children())
+            except Exception as e:
+                print(f"Ostrzezenie - czyszczenie tabeli harmonogramu: {e}")
+            
+            # Zbierz dane harmonogramu z obsluga bledow
+            harmonogram_data = {}  # miesiac -> kwota
+            harmonogram_rows = []
+            
+            # Oblicz calkowita liczbe dni
+            total_days = (end - start).days + 1
+            if total_days <= 0:
+                messagebox.showerror(APP_NAME, f"Nieprawidlowy okres: {total_days} dni")
+                return
+                
+            kwota_na_dzien = kwota / total_days
+            
+            print(f"DEBUG: Generowanie harmonogramu {start} -> {end}, dni: {total_days}, kwota/dzien: {kwota_na_dzien:.4f}")
+            
+            current_date = start
+            suma_kwot = 0.0
+            months_list = []  # Lista miesiecy w kolejnosci
+            
+            while current_date <= end:
+                # Znajdz ostatni dzien tego miesiaca w zakresie
+                year = current_date.year
+                month = current_date.month
+                
+                # Ostatni dzien miesiaca
+                if month == 12:
+                    next_month_start = date(year + 1, 1, 1)
+                else:
+                    next_month_start = date(year, month + 1, 1)
+                last_day_of_month = next_month_start - timedelta(days=1)
+                
+                # Koniec okresu dla tego miesiaca (min z konca okresu i konca miesiaca)
+                period_end = min(end, last_day_of_month)
+                
+                # Liczba dni w tym miesiacu dla naszego okresu
+                days_in_period = (period_end - current_date).days + 1
+                
+                # Kwota dla tego miesiaca
+                kwota_miesiac = round(kwota_na_dzien * days_in_period, 2)
+                suma_kwot += kwota_miesiac
+                
+                month_key = current_date.strftime("%Y-%m")
+                months_list.append(month_key)
+                harmonogram_data[month_key] = kwota_miesiac
+                
+                harmonogram_rows.append({
+                    'miesiac': month_key,
+                    'kwota': float(kwota_miesiac),
+                    'konto': vals[7],
+                    'konto_rmk': vals[8],
+                    'kategoria': vals[6]
+                })
+                
+                # Przejdz do pierwszego dnia nastepnego miesiaca
+                current_date = next_month_start
+            
+            # Sprawdz roznice i dodaj do ostatniego miesiaca jesli potrzeba
+            roznica = round(kwota - suma_kwot, 2)
+            if abs(roznica) > 0.01 and months_list:  # Jesli roznica > 1 grosz
+                # Dodaj roznice do ostatniego miesiaca
+                last_month = months_list[-1]
+                harmonogram_data[last_month] += roznica
+                harmonogram_rows[-1]['kwota'] += roznica
+            
+            # Skonfiguruj kolumny tabeli (dynamicznie) z obsluga bledow
+            columns = ["Pozycja"] + months_list + ["Razem"]
+            self.harmo_tree["columns"] = columns
+            
+            # Skonfiguruj naglowki i szerokosci kolumn
+            for col in columns:
+                if col == "Pozycja":
+                    self.harmo_tree.heading(col, text="Pozycja")
+                    self.harmo_tree.column(col, width=120, anchor='w')
+                elif col == "Razem":
+                    self.harmo_tree.heading(col, text="Razem")
+                    self.harmo_tree.column(col, width=120, anchor='e')
+                else:
+                    # Miesiace
+                    self.harmo_tree.heading(col, text=col)
+                    self.harmo_tree.column(col, width=100, anchor='e')
+            
+            # Dodaj jeden wiersz z kwotami
+            row_values = ["Kwoty miesieczne"]
+            total_sum = 0.0
+            for month in months_list:
+                kwota_m = harmonogram_data[month]
+                row_values.append(thousand_sep(kwota_m))
+                total_sum += kwota_m
+            row_values.append(thousand_sep(total_sum))
+            
+            self.harmo_tree.insert('', 'end', values=row_values)
+            
+            # persist into RMKItem z obsluga bledow
+            try:
+                it_id = int(iid)
+                item = next((x for x in self.rmk_items if x.id == it_id), None)
+                if item:
+                    item.harmonogram = harmonogram_rows
+                    item.harmonogram_generated = True
+                    self._save_state()
+                    # refresh list to update status
+                    self.refresh_rmk_tree()
+                    print(f"DEBUG: Zapisano harmonogram dla pozycji ID {it_id}")
+                else:
+                    print(f"UWAGA: Nie znaleziono pozycji RMK o ID {it_id}")
+            except Exception as e:
+                print(f"BLAD zapisywania harmonogramu: {e}")
+                messagebox.showwarning(APP_NAME, f"Harmonogram zostal wygenerowany, ale wystapil problem z zapisem: {e}")
+            
+            # Pokaz informacje o wygenerowanym harmonogramie
+            try:
+                miesiecy = len(harmonogram_rows)
+                suma_kontrolna = sum(row['kwota'] for row in harmonogram_rows)
                 messagebox.showinfo(APP_NAME, f"Harmonogram wygenerowany pomyslnie!\n\nSzczegoly:\n- Okres: {miesiecy} miesiecy\n- Calkowita kwota: {thousand_sep(kwota)}\n- Suma harmonogramu: {thousand_sep(suma_kontrolna)}\n- Calkowite dni: {total_days}")
-            print(f"SUCCESS: Harmonogram wygenerowany - {miesiecy} miesiecy, suma: {suma_kontrolna}")
-        except Exception as e:
-            print(f"BLAD wyswietlania podsumowania: {e}")
-            # Headless guard
-            if not getattr(self, '_headless', False):
+                print(f"SUCCESS: Harmonogram wygenerowany - {miesiecy} miesiecy, suma: {suma_kontrolna}")
+            except Exception as e:
+                print(f"BLAD wyswietlania podsumowania: {e}")
                 messagebox.showinfo(APP_NAME, "Harmonogram zostal wygenerowany.")
 
     def show_selected_harmonogram(self):
         # show harmonogram for selected item from combobox
-        print("DEBUG: show_selected_harmonogram called")
-        def _safe_msg(fn, *args, **kwargs):
-            try:
-                fn(*args, **kwargs)
-            except Exception as e:
-                # Headless or missing display - fallback to logging
-                try:
-                    print(f"MESSAGEBOX SKIPPED ({fn.__name__}): {args} {kwargs} -> {e}")
-                except Exception:
-                    pass
-
         sel = None
         try:
             sel = self.harmo_item_cb.get()
         except Exception:
             pass
         if not sel:
-            _safe_msg(messagebox.showinfo, APP_NAME, "Wybierz pozycje RMK z listy.")
+            messagebox.showinfo(APP_NAME, "Wybierz pozycje RMK z listy.")
             return
         # parse id from selection like '12: Opis...'
         try:
             it_id = int(str(sel).split(':', 1)[0])
         except Exception:
-            _safe_msg(messagebox.showerror, APP_NAME, "Niepoprawny wybor pozycji RMK.")
+            messagebox.showerror(APP_NAME, "Niepoprawny wybor pozycji RMK.")
             return
         item = next((x for x in self.rmk_items if x.id == it_id), None)
         if not item:
-            _safe_msg(messagebox.showerror, APP_NAME, "Nie znaleziono pozycji RMK.")
+            messagebox.showerror(APP_NAME, "Nie znaleziono pozycji RMK.")
             return
         
         # Sprawdz czy pozycja nalezy do aktualnej firmy
         cur_company = getattr(self, 'current_company', '')
         if cur_company and item.firma and item.firma != cur_company:
-            _safe_msg(messagebox.showwarning, APP_NAME, f"Ta pozycja RMK nalezy do firmy '{item.firma}', a obecnie wybrana jest firma '{cur_company}'.")
+            messagebox.showwarning(APP_NAME, f"Ta pozycja RMK nalezy do firmy '{item.firma}', a obecnie wybrana jest firma '{cur_company}'.")
             return
             
         # if item has persisted harmonogram, show it; otherwise generate on the fly
@@ -4802,7 +3722,7 @@ Funkcjonalnosci:
             row_values.append(thousand_sep(total_sum))
             
             self.harmo_tree.insert('', 'end', values=row_values)
-            _safe_msg(messagebox.showinfo, APP_NAME, f"Pokazono zapisany harmonogram dla pozycji {item.id}.")
+            messagebox.showinfo(APP_NAME, f"Pokazono zapisany harmonogram dla pozycji {item.id}.")
             return
             
         # otherwise build a temporary harmonogram using improved algorithm
@@ -4849,7 +3769,7 @@ Funkcjonalnosci:
         row_values.append(thousand_sep(total_sum))
         
         self.harmo_tree.insert('', 'end', values=row_values)
-        _safe_msg(messagebox.showinfo, APP_NAME, f"Pokazono harmonogram dla pozycji {item.id} (wygenerowany tymczasowo).")
+        messagebox.showinfo(APP_NAME, f"Pokazono harmonogram dla pozycji {item.id} (wygenerowany tymczasowo).")
 
     def filter_harmonogram(self):
         dlg = tk.Toplevel(self)
@@ -5259,58 +4179,32 @@ Funkcjonalnosci:
             self._save_state()
 
     def add_company(self):
-        # Zabezpieczenie dla trybu headless
-        if getattr(self, '_headless', False):
-            print("DEBUG: add_company - tryb headless, pomijam")
-            return
-            
-        try:
-            dlg = CompanyDialog(self, title="Nowa firma")
-            if dlg.result:
-                name = dlg.result
-                if name in self.companies:
-                    messagebox.showinfo(APP_NAME, "Firma juz istnieje.")
-                    return
-                self.companies.append(name)
-                self.refresh_company_tree()
-                self.refresh_user_tree()
-                self.refresh_cat_tree()
-                self._save_state()
-                print(f"DEBUG: Dodano firmę: {name}")
-        except Exception as e:
-            print(f"ERROR: Błąd dodawania firmy: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            if not getattr(self, '_headless', False):
-                messagebox.showerror(APP_NAME, f"Błąd podczas dodawania firmy: {e}")
+        dlg = CompanyDialog(self, title="Nowa firma")
+        if dlg.result:
+            name = dlg.result
+            if name in self.companies:
+                messagebox.showinfo(APP_NAME, "Firma juz istnieje.")
+                return
+            self.companies.append(name)
+            self.refresh_company_tree()
+            self.refresh_user_tree()
+            self.refresh_cat_tree()
+            self._save_state()
 
     def edit_company(self):
-        # Zabezpieczenie dla trybu headless
-        if getattr(self, '_headless', False):
-            print("DEBUG: edit_company - tryb headless, pomijam")
+        sel = self.company_tree.selection()
+        if not sel:
+            messagebox.showinfo(APP_NAME, "Wybierz firme do edycji.")
             return
-            
-        try:
-            sel = self.company_tree.selection()
-            if not sel:
-                messagebox.showinfo(APP_NAME, "Wybierz firme do edycji.")
-                return
-            old = self.company_tree.item(sel[0], 'values')[0]
-            dlg = CompanyDialog(self, title="Edytuj firme", name=old)
-            if dlg.result:
-                new = dlg.result
-                idx = self.companies.index(old)
-                self.companies[idx] = new
-                self.refresh_company_tree()
-                self.refresh_user_tree()
-                self._save_state()
-                print(f"DEBUG: Zmieniono firmę z '{old}' na '{new}'")
-        except Exception as e:
-            print(f"ERROR: Błąd edycji firmy: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            if not getattr(self, '_headless', False):
-                messagebox.showerror(APP_NAME, f"Błąd podczas edycji firmy: {e}")
+        old = self.company_tree.item(sel[0], 'values')[0]
+        dlg = CompanyDialog(self, title="Edytuj firme", name=old)
+        if dlg.result:
+            new = dlg.result
+            idx = self.companies.index(old)
+            self.companies[idx] = new
+            self.refresh_company_tree()
+            self.refresh_user_tree()
+            self._save_state()
 
     def delete_company(self):
         sel = self.company_tree.selection()
@@ -5349,15 +4243,10 @@ Funkcjonalnosci:
         ans = {'ok': False}
         def on_ok():
             try:
-                chosen = cb.get()
-                print(f"DEBUG _change_company: combobox.get() -> '{chosen}'")
-                self.current_company = chosen
+                self.current_company = cb.get()
                 # update title
                 if self.current_company:
-                    try:
-                        self.title(f"{APP_NAME} - {self.current_company}")
-                    except Exception:
-                        pass
+                    self.title(f"{APP_NAME} - {self.current_company}")
             except Exception:
                 pass
             ans['ok'] = True
